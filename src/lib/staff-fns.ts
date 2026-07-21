@@ -1,15 +1,28 @@
 import { createServerFn } from "@tanstack/react-start";
 
-function getStaffIds(): string[] {
+// ── Owner ────────────────────────────────────────────────────────────
+const OWNER_DISCORD_ID = "1000225571466399814";
+
+export function isOwner(discordId: string): boolean {
+  return discordId === OWNER_DISCORD_ID;
+}
+
+function getEnvStaffIds(): string[] {
   return (process.env.STAFF_DISCORD_IDS ?? "")
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
 }
 
-/** Check if a Discord user is a staff member. */
-export function isStaff(discordId: string): boolean {
-  return getStaffIds().includes(discordId);
+/** Check if a Discord user is staff or owner. */
+export async function isStaff(discordId: string): Promise<boolean> {
+  if (isOwner(discordId)) return true;
+  if (getEnvStaffIds().includes(discordId)) return true;
+  // Check DB-based staff list (managed by owner)
+  const { getDb } = await import("@/server/mongo");
+  const db = await getDb();
+  const doc = await db.collection("staff_members").findOne({ discordId });
+  return !!doc;
 }
 
 // ── Staff auth helper (DRY the cookie+session+staff check) ────────
@@ -19,7 +32,14 @@ async function requireStaff() {
   if (!sessionId) throw new Error("Unauthorized");
   const { getSession } = await import("@/server/session");
   const session = await getSession(sessionId);
-  if (!session || !isStaff(session.discordId)) throw new Error("Unauthorized");
+  if (!session || !(await isStaff(session.discordId))) throw new Error("Unauthorized");
+  return session;
+}
+
+/** Require owner only — throws if not the owner. */
+async function requireOwner() {
+  const session = await requireStaff();
+  if (!isOwner(session.discordId)) throw new Error("Owner only");
   return session;
 }
 
@@ -31,9 +51,8 @@ export const getStaffContext = createServerFn({ method: "POST" })
     if (!sessionId) return null;
     const { getSession } = await import("@/server/session");
     const session = await getSession(sessionId);
-    if (!session || !isStaff(session.discordId)) return null;
+    if (!session || !(await isStaff(session.discordId))) return null;
 
-    // Also fetch their Roblox verification
     const { getDb } = await import("@/server/mongo");
     const db = await getDb();
     const verif = await db.collection("verifications").findOne({ discordId: session.discordId });
@@ -43,6 +62,7 @@ export const getStaffContext = createServerFn({ method: "POST" })
       discordUsername: session.discordUsername,
       discordAvatar: session.discordAvatar,
       accessToken: session.accessToken,
+      isOwner: isOwner(session.discordId),
       robloxUsername: verif?.robloxUsername ?? null,
       robloxId: verif?.robloxId ?? null,
       robloxDisplayName: verif?.robloxDisplayName ?? null,
@@ -57,7 +77,7 @@ export const getPendingGlobalKeys = createServerFn({ method: "POST" })
     if (!sessionId) return [];
     const { getSession } = await import("@/server/session");
     const session = await getSession(sessionId);
-    if (!session || !isStaff(session.discordId)) return [];
+    if (!session || !(await isStaff(session.discordId))) return [];
     const { getDb } = await import("@/server/mongo");
     const db = await getDb();
     return db.collection("api_keys")
@@ -84,7 +104,7 @@ export const getAllVerifications = createServerFn({ method: "POST" })
     if (!sessionId) return { docs: [], total: 0 };
     const { getSession } = await import("@/server/session");
     const session = await getSession(sessionId);
-    if (!session || !isStaff(session.discordId)) return { docs: [], total: 0 };
+    if (!session || !(await isStaff(session.discordId))) return { docs: [], total: 0 };
     const { getDb } = await import("@/server/mongo");
     const db = await getDb();
     const page = data?.page ?? 1;
@@ -115,6 +135,138 @@ export const getUserRoblox = createServerFn({ method: "POST" })
     return verif
       ? { robloxUsername: verif.robloxUsername, robloxId: verif.robloxId, robloxDisplayName: verif.robloxDisplayName ?? null }
       : null;
+  });
+
+// ── Owner-only: IP Lookup ────────────────────────────────────────────
+
+export interface IpLookupResult {
+  discordId: string;
+  discordUsername: string;
+  discordAvatar: string | null;
+  ip: string;
+  lastSeen: string;
+  sessionCount: number;
+  robloxUsername: string | null;
+  robloxId: string | null;
+  robloxDisplayName: string | null;
+}
+
+/** Owner-only: Lookup IP(s) by Discord ID or Roblox ID. */
+export const lookupUserIps = createServerFn({ method: "POST" })
+  .validator((d: unknown) => d as { query: string })
+  .handler(async ({ data }) => {
+    await requireOwner();
+    const { getDb } = await import("@/server/mongo");
+    const db = await getDb();
+    const q = data.query.trim();
+
+    // Determine if input is a Discord ID (17-20 digit number) or Roblox ID (shorter numeric)
+    // or a Roblox username (non-numeric)
+    const isNumeric = /^\d+$/.test(q);
+
+    let discordIds: string[] = [];
+
+    if (isNumeric) {
+      if (q.length >= 17) {
+        // Looks like a Discord ID (snowflake)
+        discordIds = [q];
+      } else {
+        // Looks like a Roblox ID — find Discord ID from verifications
+        const verifs = await db.collection("verifications")
+          .find({ robloxId: q })
+          .project({ discordId: 1 })
+          .toArray();
+        discordIds = verifs.map(v => v.discordId);
+      }
+    } else {
+      // Username search
+      const verifs = await db.collection("verifications")
+        .find({ robloxUsername: { $regex: `^${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: "i" } })
+        .project({ discordId: 1 })
+        .toArray();
+      discordIds = verifs.map(v => v.discordId);
+    }
+
+    if (discordIds.length === 0) return [] as IpLookupResult[];
+
+    // Look up IPs from ip_sessions
+    const ipDocs = await db.collection("ip_sessions")
+      .find({ discordId: { $in: discordIds } })
+      .sort({ lastSeen: -1 })
+      .toArray();
+
+    // Enrich with Roblox data
+    const results: IpLookupResult[] = [];
+    for (const ipDoc of ipDocs) {
+      const verif = await db.collection("verifications").findOne({ discordId: ipDoc.discordId });
+      results.push({
+        discordId: ipDoc.discordId,
+        discordUsername: ipDoc.discordUsername,
+        discordAvatar: ipDoc.discordAvatar ?? null,
+        ip: ipDoc.ip,
+        lastSeen: ipDoc.lastSeen instanceof Date ? ipDoc.lastSeen.toISOString() : String(ipDoc.lastSeen),
+        sessionCount: ipDoc.sessionCount ?? 0,
+        robloxUsername: verif?.robloxUsername ?? null,
+        robloxId: verif?.robloxId ?? null,
+        robloxDisplayName: verif?.robloxDisplayName ?? null,
+      });
+    }
+
+    return results;
+  });
+
+// ── Owner-only: Staff Management ─────────────────────────────────────
+
+export interface StaffMember {
+  discordId: string;
+  addedBy: string;
+  addedAt: string;
+}
+
+/** Get all staff members from DB. Owner can see the list. */
+export const getStaffMembers = createServerFn({ method: "POST" })
+  .handler(async () => {
+    await requireOwner();
+    const { getDb } = await import("@/server/mongo");
+    const db = await getDb();
+    const docs = await db.collection("staff_members").find().sort({ addedAt: -1 }).toArray();
+    return docs.map(d => ({
+      discordId: d.discordId,
+      addedBy: d.addedBy,
+      addedAt: d.addedAt instanceof Date ? d.addedAt.toISOString() : String(d.addedAt),
+    })) as StaffMember[];
+  });
+
+/** Owner-only: add a staff member by Discord ID. */
+export const addStaffMember = createServerFn({ method: "POST" })
+  .validator((d: unknown) => d as { discordId: string })
+  .handler(async ({ data }) => {
+    const session = await requireOwner();
+    const { getDb } = await import("@/server/mongo");
+    const db = await getDb();
+    await db.collection("staff_members").updateOne(
+      { discordId: data.discordId },
+      {
+        $set: {
+          discordId: data.discordId,
+          addedBy: session.discordUsername,
+          addedAt: new Date(),
+        },
+      },
+      { upsert: true },
+    );
+    return { ok: true };
+  });
+
+/** Owner-only: remove a staff member by Discord ID. */
+export const removeStaffMember = createServerFn({ method: "POST" })
+  .validator((d: unknown) => d as { discordId: string })
+  .handler(async ({ data }) => {
+    await requireOwner();
+    const { getDb } = await import("@/server/mongo");
+    const db = await getDb();
+    await db.collection("staff_members").deleteOne({ discordId: data.discordId });
+    return { ok: true };
   });
 
 // ── Blacklist system ────────────────────────────────────────────────
