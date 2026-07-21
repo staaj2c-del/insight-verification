@@ -6,7 +6,8 @@ import { useState } from "react";
 import { getDashboardSession, getDashboardGuilds, getDashboardKeys } from "@/lib/dashboard-fns";
 
 /** Parse the `ibs` session cookie from the incoming request. */
-function getSessionIdFromCookie(request: Request): string | null {
+function getSessionIdFromCookie(request: Request | undefined): string | null {
+  if (!request) return null;
   const cookieHeader = request.headers.get("cookie") ?? "";
   const match = cookieHeader
     .split(";")
@@ -47,6 +48,9 @@ interface LoaderKey {
 export const Route = createFileRoute("/dashboard")({
   loader: async ({ request }) => {
     const sessionId = getSessionIdFromCookie(request);
+    if (!sessionId) {
+      return { session: null, guilds: [], keys: [] };
+    }
     const session = await getDashboardSession({ data: { sessionId } });
     if (!session) {
       return { session: null, guilds: [], keys: [] };
@@ -356,6 +360,7 @@ function Footer() {
     </footer>
   );
 }
+
 
 
 

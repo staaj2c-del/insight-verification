@@ -5,7 +5,8 @@ import { useState, useEffect } from "react";
 import { getVerifySession } from "@/lib/verify-fns";
 
 /** Parse the `ibs` session cookie from the incoming request. */
-function getSessionIdFromCookie(request: Request): string | null {
+function getSessionIdFromCookie(request: Request | undefined): string | null {
+  if (!request) return null;
   const cookieHeader = request.headers.get("cookie") ?? "";
   const match = cookieHeader
     .split(";")
@@ -18,6 +19,7 @@ function getSessionIdFromCookie(request: Request): string | null {
 export const Route = createFileRoute("/")({
   loader: async ({ request }) => {
     const sessionId = getSessionIdFromCookie(request);
+    if (!sessionId) return { session: null };
     const session = await getVerifySession({ data: { sessionId } });
     return { session };
   },
@@ -180,6 +182,7 @@ function Index() {
     </div>
   );
 }
+
 
 
 
