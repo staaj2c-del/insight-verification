@@ -2,12 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export const Route = createFileRoute("/")({
   component: Index,
   validateSearch: (s: Record<string, unknown>) => ({
     discord_id: typeof s.discord_id === "string" ? s.discord_id : "",
+    token: typeof s.token === "string" ? s.token : "",
   }),
   head: () => ({
     meta: [
@@ -23,6 +24,30 @@ function Index() {
   const search = Route.useSearch();
   const [discordId, setDiscordId] = useState(search.discord_id);
   const [error, setError] = useState("");
+  const [verifyingToken, setVerifyingToken] = useState(false);
+
+  // Auto-resolve token: the bot gives users a link like /?token=abc123
+  useEffect(() => {
+    const token = search.token?.trim();
+    if (!token) return;
+    setVerifyingToken(true);
+    fetch(`/api/public/token/${encodeURIComponent(token)}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.discord_id) {
+          setDiscordId(data.discord_id);
+          // Auto-start the OAuth flow
+          window.location.href = `/api/auth/roblox/start?discord_id=${encodeURIComponent(data.discord_id)}&token=${encodeURIComponent(token)}`;
+        } else {
+          setError(data.error || "Invalid or expired verification link.");
+          setVerifyingToken(false);
+        }
+      })
+      .catch(() => {
+        setError("Unable to validate your verification link. Please try again.");
+        setVerifyingToken(false);
+      });
+  }, [search.token]);
 
   const start = () => {
     const id = discordId.trim();
@@ -30,7 +55,10 @@ function Index() {
       setError("Enter a valid Discord user ID (17–20 digits).");
       return;
     }
-    window.location.href = `/api/auth/roblox/start?discord_id=${encodeURIComponent(id)}`;
+    const token = search.token?.trim();
+    const params = new URLSearchParams({ discord_id: id });
+    if (token) params.set("token", token);
+    window.location.href = `/api/auth/roblox/start?${params.toString()}`;
   };
 
   return (
@@ -50,6 +78,14 @@ function Index() {
       </header>
 
       <main className="flex-1 flex items-center justify-center px-4 py-12">
+        {verifyingToken ? (
+          <Card className="w-full max-w-md shadow-lg border-border/50">
+            <CardContent className="py-12 text-center space-y-4">
+              <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+              <p className="text-sm text-muted-foreground">Verifying your link…</p>
+            </CardContent>
+          </Card>
+        ) : (
         <Card className="w-full max-w-md shadow-lg border-border/50">
           <CardHeader className="text-center pb-4">
             <CardTitle className="text-xl">Roblox Verification</CardTitle>
@@ -91,6 +127,7 @@ function Index() {
             </p>
           </CardContent>
         </Card>
+        )}
       </main>
 
       <footer className="border-t border-border py-4">
@@ -101,3 +138,4 @@ function Index() {
     </div>
   );
 }
+

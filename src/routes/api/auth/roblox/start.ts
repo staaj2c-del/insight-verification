@@ -19,7 +19,8 @@ export const Route = createFileRoute("/api/auth/roblox/start")({
         if (!clientId) return new Response("Server not configured", { status: 500 });
 
         const nonce = crypto.randomUUID();
-        const state = `${discordId}.${nonce}`;
+        const verifyToken = url.searchParams.get("token") ?? "";
+        const state = `${discordId}.${nonce}.${verifyToken}`;
 
         const redirectUri = `${url.origin}/api/auth/roblox/callback`;
         const authorizeUrl = buildAuthorizeUrl({
@@ -40,3 +41,4 @@ export const Route = createFileRoute("/api/auth/roblox/start")({
     },
   },
 });
+

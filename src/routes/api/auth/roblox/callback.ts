@@ -1,7 +1,7 @@
 import "@tanstack/react-start";
 import { createFileRoute } from "@tanstack/react-router";
 import { exchangeCode, fetchUserInfo } from "@/server/roblox";
-import { verifications } from "@/server/mongo";
+import { verifications, consumeToken } from "@/server/mongo";
 
 // GET /api/auth/roblox/callback?code=...&state=<discordId>.<nonce>
 export const Route = createFileRoute("/api/auth/roblox/callback")({
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/api/auth/roblox/callback")({
           return redirectTo(url.origin, "/verify/error?reason=state_mismatch");
         }
 
-        const [discordId] = state.split(".");
+        const [discordId, , verifyToken] = state.split(".");
         if (!discordId) return redirectTo(url.origin, "/verify/error?reason=bad_state");
 
         const clientId = process.env.ROBLOX_CLIENT_ID;
@@ -64,6 +64,10 @@ export const Route = createFileRoute("/api/auth/roblox/callback")({
             { upsert: true },
           );
 
+          if (verifyToken) {
+            await consumeToken(verifyToken).catch(() => {});
+          }
+
           const params = new URLSearchParams({
             u: info.preferred_username ?? info.nickname ?? "",
             id: info.sub,
@@ -87,3 +91,4 @@ export const Route = createFileRoute("/api/auth/roblox/callback")({
 function redirectTo(origin: string, path: string): Response {
   return new Response(null, { status: 302, headers: { Location: `${origin}${path}` } });
 }
+
