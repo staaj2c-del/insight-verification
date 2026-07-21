@@ -1,24 +1,53 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
-import { getSession, getSessionIdFromRequest, type DashboardSession } from "@/server/session";
-import { fetchDiscordGuilds, canManageGuild, type DiscordGuild } from "@/server/discord";
-import { listApiKeysByOwner, revokeApiKey } from "@/server/mongo";
+import { createFileRoute } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
+import { getDashboardSession, getDashboardGuilds, getDashboardKeys } from "@/lib/dashboard-fns";
+
+// ── Pure helper (no server deps) ───────────────────────────────────
+const MANAGE_GUILD = 0x20n;
+const ADMINISTRATOR = 0x8n;
+function canManageGuild(permissions: string): boolean {
+  const perms = BigInt(permissions);
+  return (perms & MANAGE_GUILD) !== 0n || (perms & ADMINISTRATOR) !== 0n;
+}
+
+// ── Types for loader data ──
+interface LoaderSession {
+  discordId: string;
+  discordUsername: string;
+  discordAvatar: string | null;
+  accessToken: string;
+}
+interface LoaderGuild { id: string; name: string; icon: string | null; owner: boolean; permissions: string; features: string[] }
+interface LoaderKey {
+  key: string;
+  fullKey: string;
+  type: string;
+  guildId: string | null;
+  guildName: string | null;
+  label: string;
+  authorized: boolean;
+  createdAt: string;
+  lastUsed: string | null;
+}
 
 export const Route = createFileRoute("/dashboard")({
-  loader: async ({ request }) => {
-    const sessionId = getSessionIdFromRequest(request);
-    const session = await getSession(sessionId ?? "");
+  loader: async () => {
+    const session = await getDashboardSession();
     if (!session) {
       return { session: null, guilds: [], keys: [] };
     }
     const [guilds, keys] = await Promise.all([
-      fetchDiscordGuilds(session.accessToken).catch(() => [] as DiscordGuild[]),
-      listApiKeysByOwner(session.discordId),
+      getDashboardGuilds(),
+      getDashboardKeys(),
     ]);
-    return { session, guilds, keys };
+    return { session, guilds: guilds ?? [], keys: keys ?? [] } as {
+      session: LoaderSession;
+      guilds: LoaderGuild[];
+      keys: LoaderKey[];
+    };
   },
   component: Dashboard,
   head: () => ({
@@ -30,7 +59,12 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function Dashboard() {
-  const { session, guilds, keys } = Route.useLoaderData();
+  const data = Route.useLoaderData() as {
+    session: LoaderSession | null;
+    guilds: LoaderGuild[];
+    keys: LoaderKey[];
+  };
+  const { session, guilds, keys } = data;
   const [keysState, setKeysState] = useState(keys);
   const [loading, setLoading] = useState<string | null>(null);
   const [newKeyLabel, setNewKeyLabel] = useState("");
@@ -40,7 +74,6 @@ function Dashboard() {
 
   const managedGuilds = guilds.filter((g) => canManageGuild(g.permissions));
 
-  // ── Not logged in ──
   if (!session) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
@@ -73,7 +106,6 @@ function Dashboard() {
     );
   }
 
-  // ── Logged in ──
   const createKey = async (type: "server" | "global") => {
     if (type === "server" && !selectedGuild) return;
     setCreating(true);
@@ -93,19 +125,18 @@ function Dashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const data = await res.json();
-      if (data.key) {
-        await navigator.clipboard.writeText(data.key);
-        setCopySuccess(data.key);
-        // Refresh keys list
+      const resData = await res.json();
+      if (resData.key) {
+        await navigator.clipboard.writeText(resData.key);
+        setCopySuccess(resData.key);
         const keysRes = await fetch("/api/public/keys");
         const keysData = await keysRes.json();
         setKeysState(keysData.keys ?? []);
         setNewKeyLabel("");
       } else {
-        alert(data.error ?? "Failed to create key");
+        alert(resData.error ?? "Failed to create key");
       }
-    } catch (e) {
+    } catch {
       alert("Network error creating key");
     } finally {
       setCreating(false);
@@ -121,7 +152,7 @@ function Dashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key: fullKey }),
       });
-      setKeysState((prev) => prev.filter((k: { fullKey: string }) => k.fullKey !== fullKey));
+      setKeysState((prev) => prev.filter((k) => k.fullKey !== fullKey));
     } catch {
       alert("Failed to revoke key");
     } finally {
@@ -133,15 +164,10 @@ function Dashboard() {
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-8 space-y-6">
-        {/* User info */}
         <Card className="shadow-sm">
           <CardContent className="flex items-center gap-4 py-4">
             {session.discordAvatar && (
-              <img
-                src={session.discordAvatar}
-                alt=""
-                className="h-12 w-12 rounded-full"
-              />
+              <img src={session.discordAvatar} alt="" className="h-12 w-12 rounded-full" />
             )}
             <div className="flex-1">
               <p className="font-semibold text-foreground">{session.discordUsername}</p>
@@ -153,7 +179,6 @@ function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Create key */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle>Create API Key</CardTitle>
@@ -162,7 +187,6 @@ function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Server key */}
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-foreground">Server Key</h3>
               <p className="text-xs text-muted-foreground">
@@ -196,7 +220,6 @@ function Dashboard() {
 
             <hr className="border-border" />
 
-            {/* Global key */}
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-foreground">
                 Global Key{" "}
@@ -232,7 +255,6 @@ function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Your Keys */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle>Your API Keys</CardTitle>
@@ -247,7 +269,7 @@ function Dashboard() {
               </p>
             ) : (
               <div className="space-y-3">
-                {keysState.map((k: { fullKey: string; key: string; type: string; guildName: string | null; label: string; authorized: boolean; createdAt: string; lastUsed: string | null }) => (
+                {keysState.map((k) => (
                   <div key={k.fullKey} className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
                     <div className="space-y-0.5 min-w-0 flex-1">
                       <div className="flex items-center gap-2">
@@ -264,9 +286,7 @@ function Dashboard() {
                         )}
                       </div>
                       <p className="text-xs text-foreground">{k.label}</p>
-                      {k.guildName && (
-                        <p className="text-[11px] text-muted-foreground">{k.guildName}</p>
-                      )}
+                      {k.guildName && <p className="text-[11px] text-muted-foreground">{k.guildName}</p>}
                       <p className="text-[10px] text-muted-foreground">
                         Created {new Date(k.createdAt).toLocaleDateString()}
                         {k.lastUsed ? ` · Last used ${new Date(k.lastUsed).toLocaleDateString()}` : ""}
@@ -324,4 +344,5 @@ function Footer() {
     </footer>
   );
 }
+
 

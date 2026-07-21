@@ -10,15 +10,33 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as VerifySuccessRouteImport } from './routes/verify.success'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as VerifyErrorRouteImport } from './routes/verify.error'
-import { Route as ApiPublicVerificationDiscordIdRouteImport } from './routes/api/public/verification.$discordId'
-import { Route as ApiAuthRobloxStartRouteImport } from './routes/api/auth/roblox/start'
+import { Route as VerifySuccessRouteImport } from './routes/verify.success'
+import { Route as ApiPublicKeysRouteImport } from './routes/api/public/keys'
+import { Route as ApiPublicTokensRouteImport } from './routes/api/public/tokens'
+import { Route as ApiAuthDiscordCallbackRouteImport } from './routes/api/auth/discord/callback'
+import { Route as ApiAuthDiscordLogoutRouteImport } from './routes/api/auth/discord/logout'
+import { Route as ApiAuthDiscordStartRouteImport } from './routes/api/auth/discord/start'
 import { Route as ApiAuthRobloxCallbackRouteImport } from './routes/api/auth/roblox/callback'
+import { Route as ApiAuthRobloxStartRouteImport } from './routes/api/auth/roblox/start'
+import { Route as ApiPublicKeysAuthorizeRouteImport } from './routes/api/public/keys.authorize'
+import { Route as ApiPublicTokenTokenRouteImport } from './routes/api/public/token.$token'
+import { Route as ApiPublicVerificationDiscordIdRouteImport } from './routes/api/public/verification.$discordId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerifyErrorRoute = VerifyErrorRouteImport.update({
+  id: '/verify/error',
+  path: '/verify/error',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VerifySuccessRoute = VerifySuccessRouteImport.update({
@@ -26,9 +44,49 @@ const VerifySuccessRoute = VerifySuccessRouteImport.update({
   path: '/verify/success',
   getParentRoute: () => rootRouteImport,
 } as any)
-const VerifyErrorRoute = VerifyErrorRouteImport.update({
-  id: '/verify/error',
-  path: '/verify/error',
+const ApiPublicKeysRoute = ApiPublicKeysRouteImport.update({
+  id: '/api/public/keys',
+  path: '/api/public/keys',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicTokensRoute = ApiPublicTokensRouteImport.update({
+  id: '/api/public/tokens',
+  path: '/api/public/tokens',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthDiscordCallbackRoute = ApiAuthDiscordCallbackRouteImport.update({
+  id: '/api/auth/discord/callback',
+  path: '/api/auth/discord/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthDiscordLogoutRoute = ApiAuthDiscordLogoutRouteImport.update({
+  id: '/api/auth/discord/logout',
+  path: '/api/auth/discord/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthDiscordStartRoute = ApiAuthDiscordStartRouteImport.update({
+  id: '/api/auth/discord/start',
+  path: '/api/auth/discord/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthRobloxCallbackRoute = ApiAuthRobloxCallbackRouteImport.update({
+  id: '/api/auth/roblox/callback',
+  path: '/api/auth/roblox/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthRobloxStartRoute = ApiAuthRobloxStartRouteImport.update({
+  id: '/api/auth/roblox/start',
+  path: '/api/auth/roblox/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicKeysAuthorizeRoute = ApiPublicKeysAuthorizeRouteImport.update({
+  id: '/authorize',
+  path: '/authorize',
+  getParentRoute: () => ApiPublicKeysRoute,
+} as any)
+const ApiPublicTokenTokenRoute = ApiPublicTokenTokenRouteImport.update({
+  id: '/api/public/token/$token',
+  path: '/api/public/token/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicVerificationDiscordIdRoute =
@@ -37,75 +95,120 @@ const ApiPublicVerificationDiscordIdRoute =
     path: '/api/public/verification/$discordId',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiAuthRobloxStartRoute = ApiAuthRobloxStartRouteImport.update({
-  id: '/api/auth/roblox/start',
-  path: '/api/auth/roblox/start',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAuthRobloxCallbackRoute = ApiAuthRobloxCallbackRouteImport.update({
-  id: '/api/auth/roblox/callback',
-  path: '/api/auth/roblox/callback',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
   '/verify/error': typeof VerifyErrorRoute
   '/verify/success': typeof VerifySuccessRoute
+  '/api/public/keys': typeof ApiPublicKeysRouteWithChildren
+  '/api/public/tokens': typeof ApiPublicTokensRoute
+  '/api/auth/discord/callback': typeof ApiAuthDiscordCallbackRoute
+  '/api/auth/discord/logout': typeof ApiAuthDiscordLogoutRoute
+  '/api/auth/discord/start': typeof ApiAuthDiscordStartRoute
   '/api/auth/roblox/callback': typeof ApiAuthRobloxCallbackRoute
   '/api/auth/roblox/start': typeof ApiAuthRobloxStartRoute
+  '/api/public/keys/authorize': typeof ApiPublicKeysAuthorizeRoute
+  '/api/public/token/$token': typeof ApiPublicTokenTokenRoute
   '/api/public/verification/$discordId': typeof ApiPublicVerificationDiscordIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
   '/verify/error': typeof VerifyErrorRoute
   '/verify/success': typeof VerifySuccessRoute
+  '/api/public/keys': typeof ApiPublicKeysRouteWithChildren
+  '/api/public/tokens': typeof ApiPublicTokensRoute
+  '/api/auth/discord/callback': typeof ApiAuthDiscordCallbackRoute
+  '/api/auth/discord/logout': typeof ApiAuthDiscordLogoutRoute
+  '/api/auth/discord/start': typeof ApiAuthDiscordStartRoute
   '/api/auth/roblox/callback': typeof ApiAuthRobloxCallbackRoute
   '/api/auth/roblox/start': typeof ApiAuthRobloxStartRoute
+  '/api/public/keys/authorize': typeof ApiPublicKeysAuthorizeRoute
+  '/api/public/token/$token': typeof ApiPublicTokenTokenRoute
   '/api/public/verification/$discordId': typeof ApiPublicVerificationDiscordIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
   '/verify/error': typeof VerifyErrorRoute
   '/verify/success': typeof VerifySuccessRoute
+  '/api/public/keys': typeof ApiPublicKeysRouteWithChildren
+  '/api/public/tokens': typeof ApiPublicTokensRoute
+  '/api/auth/discord/callback': typeof ApiAuthDiscordCallbackRoute
+  '/api/auth/discord/logout': typeof ApiAuthDiscordLogoutRoute
+  '/api/auth/discord/start': typeof ApiAuthDiscordStartRoute
   '/api/auth/roblox/callback': typeof ApiAuthRobloxCallbackRoute
   '/api/auth/roblox/start': typeof ApiAuthRobloxStartRoute
+  '/api/public/keys/authorize': typeof ApiPublicKeysAuthorizeRoute
+  '/api/public/token/$token': typeof ApiPublicTokenTokenRoute
   '/api/public/verification/$discordId': typeof ApiPublicVerificationDiscordIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/dashboard'
     | '/verify/error'
     | '/verify/success'
+    | '/api/public/keys'
+    | '/api/public/tokens'
+    | '/api/auth/discord/callback'
+    | '/api/auth/discord/logout'
+    | '/api/auth/discord/start'
     | '/api/auth/roblox/callback'
     | '/api/auth/roblox/start'
+    | '/api/public/keys/authorize'
+    | '/api/public/token/$token'
     | '/api/public/verification/$discordId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/dashboard'
     | '/verify/error'
     | '/verify/success'
+    | '/api/public/keys'
+    | '/api/public/tokens'
+    | '/api/auth/discord/callback'
+    | '/api/auth/discord/logout'
+    | '/api/auth/discord/start'
     | '/api/auth/roblox/callback'
     | '/api/auth/roblox/start'
+    | '/api/public/keys/authorize'
+    | '/api/public/token/$token'
     | '/api/public/verification/$discordId'
   id:
     | '__root__'
     | '/'
+    | '/dashboard'
     | '/verify/error'
     | '/verify/success'
+    | '/api/public/keys'
+    | '/api/public/tokens'
+    | '/api/auth/discord/callback'
+    | '/api/auth/discord/logout'
+    | '/api/auth/discord/start'
     | '/api/auth/roblox/callback'
     | '/api/auth/roblox/start'
+    | '/api/public/keys/authorize'
+    | '/api/public/token/$token'
     | '/api/public/verification/$discordId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DashboardRoute: typeof DashboardRoute
   VerifyErrorRoute: typeof VerifyErrorRoute
   VerifySuccessRoute: typeof VerifySuccessRoute
+  ApiPublicKeysRoute: typeof ApiPublicKeysRouteWithChildren
+  ApiPublicTokensRoute: typeof ApiPublicTokensRoute
+  ApiAuthDiscordCallbackRoute: typeof ApiAuthDiscordCallbackRoute
+  ApiAuthDiscordLogoutRoute: typeof ApiAuthDiscordLogoutRoute
+  ApiAuthDiscordStartRoute: typeof ApiAuthDiscordStartRoute
   ApiAuthRobloxCallbackRoute: typeof ApiAuthRobloxCallbackRoute
   ApiAuthRobloxStartRoute: typeof ApiAuthRobloxStartRoute
+  ApiPublicTokenTokenRoute: typeof ApiPublicTokenTokenRoute
   ApiPublicVerificationDiscordIdRoute: typeof ApiPublicVerificationDiscordIdRoute
 }
 
@@ -118,11 +221,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/verify/success': {
-      id: '/verify/success'
-      path: '/verify/success'
-      fullPath: '/verify/success'
-      preLoaderRoute: typeof VerifySuccessRouteImport
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/verify/error': {
@@ -132,18 +235,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VerifyErrorRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/verification/$discordId': {
-      id: '/api/public/verification/$discordId'
-      path: '/api/public/verification/$discordId'
-      fullPath: '/api/public/verification/$discordId'
-      preLoaderRoute: typeof ApiPublicVerificationDiscordIdRouteImport
+    '/verify/success': {
+      id: '/verify/success'
+      path: '/verify/success'
+      fullPath: '/verify/success'
+      preLoaderRoute: typeof VerifySuccessRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/auth/roblox/start': {
-      id: '/api/auth/roblox/start'
-      path: '/api/auth/roblox/start'
-      fullPath: '/api/auth/roblox/start'
-      preLoaderRoute: typeof ApiAuthRobloxStartRouteImport
+    '/api/public/keys': {
+      id: '/api/public/keys'
+      path: '/api/public/keys'
+      fullPath: '/api/public/keys'
+      preLoaderRoute: typeof ApiPublicKeysRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/tokens': {
+      id: '/api/public/tokens'
+      path: '/api/public/tokens'
+      fullPath: '/api/public/tokens'
+      preLoaderRoute: typeof ApiPublicTokensRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/discord/callback': {
+      id: '/api/auth/discord/callback'
+      path: '/api/auth/discord/callback'
+      fullPath: '/api/auth/discord/callback'
+      preLoaderRoute: typeof ApiAuthDiscordCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/discord/logout': {
+      id: '/api/auth/discord/logout'
+      path: '/api/auth/discord/logout'
+      fullPath: '/api/auth/discord/logout'
+      preLoaderRoute: typeof ApiAuthDiscordLogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/discord/start': {
+      id: '/api/auth/discord/start'
+      path: '/api/auth/discord/start'
+      fullPath: '/api/auth/discord/start'
+      preLoaderRoute: typeof ApiAuthDiscordStartRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/roblox/callback': {
@@ -153,17 +284,73 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthRobloxCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/roblox/start': {
+      id: '/api/auth/roblox/start'
+      path: '/api/auth/roblox/start'
+      fullPath: '/api/auth/roblox/start'
+      preLoaderRoute: typeof ApiAuthRobloxStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/keys/authorize': {
+      id: '/api/public/keys/authorize'
+      path: '/authorize'
+      fullPath: '/api/public/keys/authorize'
+      preLoaderRoute: typeof ApiPublicKeysAuthorizeRouteImport
+      parentRoute: typeof ApiPublicKeysRoute
+    }
+    '/api/public/token/$token': {
+      id: '/api/public/token/$token'
+      path: '/api/public/token/$token'
+      fullPath: '/api/public/token/$token'
+      preLoaderRoute: typeof ApiPublicTokenTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/verification/$discordId': {
+      id: '/api/public/verification/$discordId'
+      path: '/api/public/verification/$discordId'
+      fullPath: '/api/public/verification/$discordId'
+      preLoaderRoute: typeof ApiPublicVerificationDiscordIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface ApiPublicKeysRouteChildren {
+  ApiPublicKeysAuthorizeRoute: typeof ApiPublicKeysAuthorizeRoute
+}
+
+const ApiPublicKeysRouteChildren: ApiPublicKeysRouteChildren = {
+  ApiPublicKeysAuthorizeRoute: ApiPublicKeysAuthorizeRoute,
+}
+
+const ApiPublicKeysRouteWithChildren = ApiPublicKeysRoute._addFileChildren(
+  ApiPublicKeysRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DashboardRoute: DashboardRoute,
   VerifyErrorRoute: VerifyErrorRoute,
   VerifySuccessRoute: VerifySuccessRoute,
+  ApiPublicKeysRoute: ApiPublicKeysRouteWithChildren,
+  ApiPublicTokensRoute: ApiPublicTokensRoute,
+  ApiAuthDiscordCallbackRoute: ApiAuthDiscordCallbackRoute,
+  ApiAuthDiscordLogoutRoute: ApiAuthDiscordLogoutRoute,
+  ApiAuthDiscordStartRoute: ApiAuthDiscordStartRoute,
   ApiAuthRobloxCallbackRoute: ApiAuthRobloxCallbackRoute,
   ApiAuthRobloxStartRoute: ApiAuthRobloxStartRoute,
+  ApiPublicTokenTokenRoute: ApiPublicTokenTokenRoute,
   ApiPublicVerificationDiscordIdRoute: ApiPublicVerificationDiscordIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
