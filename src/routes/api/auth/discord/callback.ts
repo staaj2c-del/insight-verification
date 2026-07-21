@@ -5,25 +5,38 @@ import { createSession, setSessionCookie } from "@/server/session";
 
 // GET /api/auth/discord/callback?code=...&state=...
 // Discord redirects here after the user authorizes.
+// The `state` param contains { redirect_to, nonce }.
 export const Route = createFileRoute("/api/auth/discord/callback")({
   server: {
     handlers: {
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const code = url.searchParams.get("code");
+        const rawState = url.searchParams.get("state");
         const error = url.searchParams.get("error");
+
+        // Parse the redirect target from state
+        let redirectTo = "/dashboard";
+        try {
+          if (rawState) {
+            const parsed = JSON.parse(decodeURIComponent(rawState));
+            if (typeof parsed.redirect_to === "string" && parsed.redirect_to.startsWith("/")) {
+              redirectTo = parsed.redirect_to;
+            }
+          }
+        } catch { /* ignore bad state, use default */ }
 
         if (error) {
           return new Response(null, {
             status: 302,
-            headers: { Location: `${url.origin}/dashboard?error=${encodeURIComponent(error)}` },
+            headers: { Location: `${url.origin}${redirectTo}?error=${encodeURIComponent(error)}` },
           });
         }
 
         if (!code) {
           return new Response(null, {
             status: 302,
-            headers: { Location: `${url.origin}/dashboard?error=missing_code` },
+            headers: { Location: `${url.origin}${redirectTo}?error=missing_code` },
           });
         }
 
@@ -42,10 +55,16 @@ export const Route = createFileRoute("/api/auth/discord/callback")({
             refreshToken: token.refresh_token,
           });
 
+          // Append discord_id if redirecting to verify page
+          let location = `${url.origin}${redirectTo}`;
+          if (redirectTo === "/" || redirectTo === "") {
+            location = `${url.origin}/?discord_id=${encodeURIComponent(user.id)}`;
+          }
+
           return new Response(null, {
             status: 302,
             headers: {
-              Location: `${url.origin}/dashboard`,
+              Location: location,
               "Set-Cookie": setSessionCookie(sessionId, 7 * 24 * 60 * 60),
             },
           });
@@ -53,7 +72,7 @@ export const Route = createFileRoute("/api/auth/discord/callback")({
           console.error("Discord OAuth callback error:", e);
           return new Response(null, {
             status: 302,
-            headers: { Location: `${url.origin}/dashboard?error=auth_failed` },
+            headers: { Location: `${url.origin}${redirectTo}?error=auth_failed` },
           });
         }
       },
