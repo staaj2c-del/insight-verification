@@ -9,10 +9,6 @@ export const Route = createFileRoute("/")({
     const session = await getVerifySession();
     return { session };
   },
-  validateSearch: (s: Record<string, unknown>) => ({
-    discord_id: typeof s.discord_id === "string" ? s.discord_id : "",
-    token: typeof s.token === "string" ? s.token : "",
-  }),
   component: Index,
   head: () => ({
     meta: [
@@ -172,4 +168,6 @@ function Index() {
     </div>
   );
 }
+
+
 
