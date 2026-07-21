@@ -1,18 +1,6 @@
 import { createFileRoute, Outlet, Link } from "@tanstack/react-router";
 import { createContext, useContext } from "react";
-import { getDashboardSession, getDashboardGuilds, getDashboardKeys } from "@/lib/dashboard-fns";
-
-/** Parse the `ibs` session cookie from the incoming request. */
-function getSessionIdFromCookie(request: Request | undefined): string | null {
-  if (!request) return null;
-  const cookieHeader = request.headers.get("cookie") ?? "";
-  const match = cookieHeader
-    .split(";")
-    .map((c) => c.trim())
-    .find((c) => c.startsWith("ibs="));
-  if (!match) return null;
-  return decodeURIComponent(match.slice("ibs=".length));
-}
+import { resolveDashboardSession, getDashboardGuilds, getDashboardKeys } from "@/lib/dashboard-fns";
 
 // ── Pure helper (no server deps) ───────────────────────────────────
 const MANAGE_GUILD = 0x20n;
@@ -24,6 +12,7 @@ export function canManageGuild(permissions: string): boolean {
 
 // ── Types for loader data ──
 export interface LoaderSession {
+  sessionId: string;
   discordId: string;
   discordUsername: string;
   discordAvatar: string | null;
@@ -55,18 +44,16 @@ export function useDashboard() {
 }
 
 export const Route = createFileRoute("/dashboard")({
-  loader: async ({ request }) => {
-    const sessionId = getSessionIdFromCookie(request);
-    if (!sessionId) {
-      return { session: null, guilds: [], keys: [] };
-    }
-    const session = await getDashboardSession({ data: { sessionId } });
+  loader: async () => {
+    // resolveDashboardSession uses getWebRequest() internally (server-only),
+    // so it correctly reads the ibs cookie on every SSR request.
+    const session = await resolveDashboardSession();
     if (!session) {
       return { session: null, guilds: [], keys: [] };
     }
     const [guilds, keys] = await Promise.all([
-      getDashboardGuilds({ data: { sessionId } }),
-      getDashboardKeys({ data: { sessionId } }),
+      getDashboardGuilds({ data: { sessionId: session.sessionId } }),
+      getDashboardKeys({ data: { sessionId: session.sessionId } }),
     ]);
     return { session, guilds: guilds ?? [], keys: keys ?? [] } as {
       session: LoaderSession;
@@ -233,4 +220,5 @@ function Footer() {
     </footer>
   );
 }
+
 

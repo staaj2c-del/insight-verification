@@ -1,6 +1,41 @@
 import { createServerFn } from "@tanstack/react-start";
 
 /**
+ * Resolve a dashboard session directly from the incoming HTTP request.
+ * Uses `getWebRequest()` inside the server function handler so it bypasses
+ * TanStack's import-protection plugin (server-only imports are safe here).
+ *
+ * Unlike `getDashboardSession`, this does NOT require the caller to pass a
+ * sessionId — it reads the `ibs` cookie from the raw request itself.
+ */
+export const resolveDashboardSession = createServerFn({ method: "POST" })
+  .handler(async () => {
+    const { getWebRequest } = await import("@tanstack/react-start/server");
+    const request = getWebRequest();
+    if (!request) return null;
+
+    const cookieHeader = request.headers.get("cookie") ?? "";
+    const match = cookieHeader
+      .split(";")
+      .map((c) => c.trim())
+      .find((c) => c.startsWith("ibs="));
+    if (!match) return null;
+
+    const sessionId = decodeURIComponent(match.slice("ibs=".length));
+    const { getSession } = await import("@/server/session");
+    const session = await getSession(sessionId);
+    if (!session) return null;
+
+    return {
+      sessionId,
+      discordId: session.discordId,
+      discordUsername: session.discordUsername,
+      discordAvatar: session.discordAvatar,
+      accessToken: session.accessToken,
+    };
+  });
+
+/**
  * Resolve a dashboard session by its session ID.
  * The loader parses the `ibs` cookie from the incoming request and passes
  * the decoded session ID here. We avoid `getWebRequest()` because it is
@@ -67,4 +102,5 @@ export const getDashboardKeys = createServerFn({ method: "POST" })
     if (!session) return [];
     return listApiKeysByOwner(session.discordId);
   });
+
 

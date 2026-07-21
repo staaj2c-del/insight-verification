@@ -1,14 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/dashboard/")({
-  component: DashboardIndex,
+  loader: () => {
+    throw redirect({ to: "/dashboard/overview", replace: true });
+  },
 });
-
-function DashboardIndex() {
-  useEffect(() => {
-    window.location.replace("/dashboard/overview");
-  }, []);
-  return null;
-}
 
