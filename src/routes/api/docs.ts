@@ -1,17 +1,22 @@
 import "@tanstack/react-start";
 import { createFileRoute } from "@tanstack/react-router";
-import { readFileSync } from "fs";
-import { join } from "path";
 
-// GET /api/docs — renders API.md as styled HTML
+// GET /api/docs — fetches the public/API.md static file and renders as styled HTML
 export const Route = createFileRoute("/api/docs")({
   server: {
     handlers: {
-      GET: async () => {
+      GET: async ({ request }) => {
         let content = "";
         try {
-          content = readFileSync(join(process.cwd(), "API.md"), "utf-8");
+          const res = await fetch(new URL("/API.md", request.url));
+          if (res.ok) {
+            content = await res.text();
+          }
         } catch {
+          // fall through
+        }
+
+        if (!content) {
           return new Response("<h1>API docs not found</h1>", {
             status: 404,
             headers: { "Content-Type": "text/html" },
@@ -50,7 +55,6 @@ function renderMarkdown(md: string): string {
   for (const raw of lines) {
     const line = raw.trimEnd();
 
-    // Code blocks
     if (line.startsWith("```")) {
       if (inCodeBlock) {
         out += flushCode();
@@ -69,9 +73,8 @@ function renderMarkdown(md: string): string {
       continue;
     }
 
-    // Tables
     if (line.startsWith("|") && line.endsWith("|")) {
-      if (line.startsWith("|---") || line.startsWith("| ---")) continue; // separator row
+      if (line.startsWith("|---") || line.startsWith("| ---")) continue;
       if (!inTable) { out += '<table class="api-table">'; inTable = true; }
       const cells = line.slice(1, -1).split("|").map((c) => c.trim());
       out += "<tr>" + cells.map((c) => `<td>${renderInline(c)}</td>`).join("") + "</tr>";
@@ -79,7 +82,6 @@ function renderMarkdown(md: string): string {
     }
     if (inTable) { out += "</table>"; inTable = false; }
 
-    // Headings
     if (line.startsWith("### ")) {
       out += `<h3>${renderInline(line.slice(4))}</h3>`;
     } else if (line.startsWith("## ")) {
@@ -178,11 +180,8 @@ function renderMarkdown(md: string): string {
 
 function renderInline(text: string): string {
   return text
-    // Bold
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    // Inline code
     .replace(/`([^`]+)`/g, "<code>$1</code>")
-    // Links
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
 }
 
