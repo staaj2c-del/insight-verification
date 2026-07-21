@@ -32,19 +32,12 @@ export async function verifications(): Promise<Collection<VerificationRecord>> {
   const db = await getDb();
   const col = db.collection<VerificationRecord>("verifications");
 
-  // Drop stale unique index on "token" from older deployments — it conflicts
-  // with upserts that don't set a token field (E11000 dup key: { token: null }).
-  try {
-    await col.dropIndex("token_1");
-  } catch {
-    // Index doesn't exist — fine.
-  }
-
-  // Also drop any old non-unique token index
-  try {
-    await col.dropIndex("token_1_unique");
-  } catch {
-    // Doesn't exist — fine.
+  // Drop stale unique indexes from older deployments — they conflict
+  // with upserts that use the current schema (E11000 dup key):
+  //   - token_1: old unique index on "token"
+  //   - discord_id_1: old unique index on "discord_id" (now uses camelCase "discordId")
+  for (const idx of ["token_1", "token_1_unique", "discord_id_1"]) {
+    try { await col.dropIndex(idx); } catch { /* fine */ }
   }
 
   await Promise.all([
@@ -187,5 +180,6 @@ export async function authorizeGlobalKey(
   );
   return r.modifiedCount > 0;
 }
+
 
 

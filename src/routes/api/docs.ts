@@ -1,29 +1,13 @@
 import "@tanstack/react-start";
 import { createFileRoute } from "@tanstack/react-router";
+import apiMd from "../../../public/API.md?raw";
 
-// GET /api/docs — fetches the public/API.md static file and renders as styled HTML
+// GET /api/docs — serves the API.md as styled dark-mode HTML
 export const Route = createFileRoute("/api/docs")({
   server: {
     handlers: {
-      GET: async ({ request }) => {
-        let content = "";
-        try {
-          const res = await fetch(new URL("/API.md", request.url));
-          if (res.ok) {
-            content = await res.text();
-          }
-        } catch {
-          // fall through
-        }
-
-        if (!content) {
-          return new Response("<h1>API docs not found</h1>", {
-            status: 404,
-            headers: { "Content-Type": "text/html" },
-          });
-        }
-
-        const html = renderMarkdown(content);
+      GET: async () => {
+        const html = renderMarkdown(apiMd);
         return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } });
       },
     },
