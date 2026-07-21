@@ -10,18 +10,10 @@ import { createServerFn } from "@tanstack/react-start";
  */
 export const resolveDashboardSession = createServerFn({ method: "POST" })
   .handler(async () => {
-    const { getWebRequest } = await import("@tanstack/react-start/server");
-    const request = getWebRequest();
-    if (!request) return null;
+    const { getCookie } = await import("@tanstack/react-start/server");
+    const sessionId = getCookie("ibs");
+    if (!sessionId) return null;
 
-    const cookieHeader = request.headers.get("cookie") ?? "";
-    const match = cookieHeader
-      .split(";")
-      .map((c) => c.trim())
-      .find((c) => c.startsWith("ibs="));
-    if (!match) return null;
-
-    const sessionId = decodeURIComponent(match.slice("ibs=".length));
     const { getSession } = await import("@/server/session");
     const session = await getSession(sessionId);
     if (!session) return null;
@@ -102,5 +94,6 @@ export const getDashboardKeys = createServerFn({ method: "POST" })
     if (!session) return [];
     return listApiKeysByOwner(session.discordId);
   });
+
 
 
