@@ -1,20 +1,19 @@
 import "@tanstack/react-start";
 import { createFileRoute } from "@tanstack/react-router";
 import { createToken } from "@/server/mongo";
+import { authenticateTokenCreation } from "@/server/auth";
 
 // POST /api/public/tokens
 // Bot calls this to generate a one-time verification token for a Discord user.
-// Body: { discord_id: string, secret: string }
-// The `secret` is a shared value only the bot knows.
+//
+// Auth options (in priority order):
+// 1. Authorization: Bearer insight_server_xxx or insight_global_xxx  (developer keys)
+// 2. Authorization: Bearer <BOT_API_KEY>  (legacy)
+// 3. Body: { "secret": "<API_SECRET>" }  (legacy shared secret)
 export const Route = createFileRoute("/api/public/tokens")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const SHARED_SECRET = process.env.API_SECRET;
-        if (!SHARED_SECRET) {
-          return Response.json({ error: "Server not configured" }, { status: 500 });
-        }
-
         let body: { discord_id?: string; secret?: string };
         try {
           body = await request.json();
@@ -22,10 +21,15 @@ export const Route = createFileRoute("/api/public/tokens")({
           return Response.json({ error: "Invalid JSON body" }, { status: 400 });
         }
 
-        const { discord_id: discordId, secret } = body;
+        const { discord_id: discordId } = body;
 
-        if (!secret || secret !== SHARED_SECRET) {
-          return Response.json({ error: "Unauthorized" }, { status: 401 });
+        // Authenticate via developer key, legacy Bearer, or body secret
+        const auth = await authenticateTokenCreation(request, body);
+        if (!auth) {
+          return Response.json(
+            { error: "Unauthorized. Provide a valid API key via Authorization: Bearer or a secret in the body." },
+            { status: 401 },
+          );
         }
 
         if (!discordId || !/^\d{5,25}$/.test(discordId)) {

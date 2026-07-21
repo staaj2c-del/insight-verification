@@ -4,32 +4,57 @@ Build your own bot using Insight Bot's Roblox verification database. This API le
 
 ---
 
+## Developer API Keys
+
+All API endpoints (except the verification token resolution) require authentication. You have two options:
+
+### Option 1: Developer API Keys (Recommended)
+
+1. Log into the **[Developer Dashboard](https://verify.insightbot.online/dashboard)** with Discord.
+2. Choose a server you manage (requires **Manage Guild** or **Administrator** permission).
+3. Click **Create Server Key** — the key is instantly generated and auto-authorized.
+4. For cross-server access, click **Request Global Key** — Insight Bot staff will review and approve it via Discord.
+
+**Key format:**
+- Server keys: `insight_server_<48 hex chars>`
+- Global keys: `insight_global_<48 hex chars>`
+
+Use as a Bearer token:
+```bash
+Authorization: Bearer insight_server_abc123...
+```
+
+### Option 2: Legacy Env Vars
+
+Still supported but deprecated for new bots. See [Legacy Auth](#legacy-auth) at the bottom.
+
+---
+
+## Discord OAuth (Dashboard Login)
+
+| Setting | Value |
+|---|---|
+| **Discord OAuth Scopes** | `identify` `guilds` |
+| **Redirect URI / Callback** | `https://verify.insightbot.online/api/auth/discord/callback` |
+| **Dashboard URL** | `https://verify.insightbot.online/dashboard` |
+
+Go to the [Discord Developer Portal](https://discord.com/developers/applications) → OAuth2 → add the redirect URI above.
+
+---
+
 ## Architecture
 
 ```
 ┌──────────┐     POST /api/public/tokens      ┌───────────────┐
 │ Your Bot │ ─────────────────────────────────►│ Insight Verify│
 │          │◄──── { token, verify_url } ──────│   (Vercel)    │
-│          │                                   │               │
+│          │  Authorization: Bearer <key>      │               │
 │          │  DM verify_url to Discord user ──►│  ┌─────────┐  │
 │          │                                   │  │ MongoDB  │  │
 │          │  GET /api/public/verification/:id │  │  (Atlas) │  │
 │          │◄──── { verified, robloxId, … } ──│  └─────────┘  │
 └──────────┘                                   └───────────────┘
 ```
-
----
-
-## Authentication
-
-The API uses two separate secrets — keep them distinct:
-
-| Env Variable | Used By | Purpose |
-|---|---|---|
-| `API_SECRET` | `POST /api/public/tokens` | Your bot sends this in the JSON body to prove it's authorized to generate verification links. |
-| `BOT_API_KEY` | `GET/DELETE /api/public/verification/:id` | Sent as a `Bearer` token in the `Authorization` header to read or delete verification records. |
-
-**Never expose these in client-side code.** They belong in your bot's environment variables only.
 
 ---
 
@@ -42,21 +67,20 @@ Generate a one-time-use token that lets a Discord user verify their Roblox accou
 ```
 POST https://verify.insightbot.online/api/public/tokens
 Content-Type: application/json
+Authorization: Bearer insight_server_xxx   (recommended)
 ```
 
 **Request Body**
 
 ```json
 {
-  "discord_id": "123456789012345678",
-  "secret": "your-api-secret-here"
+  "discord_id": "123456789012345678"
 }
 ```
 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `discord_id` | string | Yes | Discord user ID (5–25 digits) |
-| `secret` | string | Yes | Must match the `API_SECRET` env var set in Vercel |
 
 **Response `200 OK`**
 
@@ -72,7 +96,7 @@ Content-Type: application/json
 | Status | Body | Meaning |
 |---|---|---|
 | 400 | `{ "error": "Valid discord_id required" }` | Missing or malformed discord_id |
-| 401 | `{ "error": "Unauthorized" }` | `secret` doesn't match `API_SECRET` |
+| 401 | `{ "error": "Unauthorized…" }` | Invalid or missing API key |
 | 500 | `{ "error": "Internal error" }` | Database failure |
 
 **Usage:** DM the `verify_url` to the user. When they click it, the page auto-resolves the token, pre-fills their Discord ID, and redirects them straight to Roblox OAuth. No manual typing needed.
@@ -85,7 +109,7 @@ Check whether a Discord user has a verified Roblox account on file.
 
 ```
 GET https://verify.insightbot.online/api/public/verification/{discordId}
-Authorization: Bearer your-bot-api-key
+Authorization: Bearer insight_server_xxx
 ```
 
 **Response `200 OK`** (verified)
@@ -114,10 +138,10 @@ Authorization: Bearer your-bot-api-key
 
 | Status | Body | Meaning |
 |---|---|---|
-| 401 | `{ "error": "unauthorized" }` | Missing or wrong `BOT_API_KEY` |
-| 500 | `{ "error": "server_not_configured" }` | `BOT_API_KEY` env var not set |
+| 401 | `{ "error": "unauthorized" }` | Missing or invalid API key |
+| 500 | — | Server error |
 
-**Usage:** Call this when a user runs your bot's `/verify` or `/whois` command. If `verified: true`, you know their Roblox ID and username. Use `discordId` from the response (not the request) to confirm you're looking at the right record.
+**Usage:** Call this when a user runs your bot's `/verify` or `/whois` command. If `verified: true`, you know their Roblox ID and username.
 
 ---
 
@@ -127,7 +151,7 @@ Remove a user's verification record, e.g. when they leave your server or request
 
 ```
 DELETE https://verify.insightbot.online/api/public/verification/{discordId}
-Authorization: Bearer your-bot-api-key
+Authorization: Bearer insight_server_xxx
 ```
 
 **Response `200 OK`**
@@ -139,8 +163,6 @@ Authorization: Bearer your-bot-api-key
 ```
 
 `deleted` is the count of documents removed (0 if none matched, 1 if a record was deleted).
-
-**Errors:** Same as the GET endpoint above.
 
 ---
 
@@ -172,12 +194,50 @@ GET https://verify.insightbot.online/api/public/token/{token}
 
 ---
 
+## Developer API Key Management
+
+These endpoints are called by the dashboard. They use session cookies, not Bearer tokens.
+
+### Create Key
+
+```
+POST https://verify.insightbot.online/api/public/keys
+Cookie: ibs=<session>
+Content-Type: application/json
+
+{
+  "type": "server",
+  "guildId": "1234567890",
+  "guildName": "My Server",
+  "label": "MyBot Production"
+}
+```
+
+### List Keys
+
+```
+GET https://verify.insightbot.online/api/public/keys
+Cookie: ibs=<session>
+```
+
+### Revoke Key
+
+```
+DELETE https://verify.insightbot.online/api/public/keys
+Cookie: ibs=<session>
+Content-Type: application/json
+
+{ "key": "insight_server_abc123..." }
+```
+
+---
+
 ## Verification Flow (Step by Step)
 
 ### Token-Based Auto-Flow (Recommended)
 
 1. User runs your bot's `/verify` command in Discord.
-2. Your bot calls `POST /api/public/tokens` with the user's Discord ID and your `API_SECRET`.
+2. Your bot calls `POST /api/public/tokens` with the user's Discord ID.
 3. Your bot DMs the user the `verify_url` from the response.
 4. User clicks the link — the page auto-detects their Discord ID and redirects to Roblox.
 5. User authorizes Insight Bot on Roblox.
@@ -192,15 +252,14 @@ GET https://verify.insightbot.online/api/public/token/{token}
 
 ---
 
-## Discord OAuth (Bot Dashboard)
+## Roblox OAuth Scopes
 
-> **Coming soon.** A management dashboard at `https://verify.insightbot.online/dashboard` where server admins log in via Discord OAuth to view verification stats, manage users, and configure settings.
-
-| Setting | Value |
+| Scope | Purpose |
 |---|---|
-| **Discord OAuth Link** | *(pending — will be provided)* |
-| **Client ID** | *(pending)* |
-| **Redirect URI / Callback URL** | `https://verify.insightbot.online/api/auth/discord/callback` |
+| `openid` | Get the user's Roblox ID (`sub` claim) |
+| `profile` | Get `preferred_username`, `nickname`, `name`, `picture` |
+
+These are set in the `ROBLOX_CLIENT_ID` app on the Roblox Creator Dashboard under **OAuth 2.0 → Scopes**.
 
 ---
 
@@ -209,7 +268,7 @@ GET https://verify.insightbot.online/api/public/token/{token}
 | Service | Callback URL |
 |---|---|
 | **Roblox OAuth** | `https://verify.insightbot.online/api/auth/roblox/callback` |
-| **Discord OAuth** (planned) | `https://verify.insightbot.online/api/auth/discord/callback` |
+| **Discord OAuth** (Dashboard) | `https://verify.insightbot.online/api/auth/discord/callback` |
 
 ---
 
@@ -223,28 +282,30 @@ These must be set in your Vercel project dashboard under **Settings → Environm
 | `MONGODB_DB` | No | Database name (defaults to connection string's default) |
 | `ROBLOX_CLIENT_ID` | Yes | Roblox OAuth App client ID |
 | `ROBLOX_CLIENT_SECRET` | Yes | Roblox OAuth App client secret |
-| `API_SECRET` | Yes (bot) | Shared secret your bot sends to create tokens |
-| `BOT_API_KEY` | Yes (bot) | Bearer token for verification lookup/delete endpoints |
+| `DISCORD_CLIENT_ID` | Yes (dashboard) | Discord OAuth App client ID |
+| `DISCORD_CLIENT_SECRET` | Yes (dashboard) | Discord OAuth App client secret |
+| `API_SECRET` | No (legacy) | Shared secret for token creation (deprecated, use dev keys) |
+| `BOT_API_KEY` | No (legacy) | Bearer token for verification lookup (deprecated, use dev keys) |
+| `STAFF_DISCORD_IDS` | Yes (staff) | Comma-separated Discord user IDs authorized to approve global keys |
 
 ---
 
-## Quickstart (Discord.js Bot)
+## Quickstart (Discord.js Bot with Developer Keys)
 
 ```js
-// Your bot's verify command
 const VERIFY_API = 'https://verify.insightbot.online/api/public';
+const API_KEY = 'insight_server_your_key_here'; // From dashboard
 
 async function handleVerify(interaction) {
   const discordId = interaction.user.id;
 
-  // Step 1: Create a verification token
   const tokenRes = await fetch(`${VERIFY_API}/tokens`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      discord_id: discordId,
-      secret: process.env.API_SECRET,
-    }),
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${API_KEY}`,
+    },
+    body: JSON.stringify({ discord_id: discordId }),
   });
 
   if (!tokenRes.ok) {
@@ -254,23 +315,21 @@ async function handleVerify(interaction) {
 
   const { verify_url: verifyUrl } = await tokenRes.json();
 
-  // Step 2: DM the link to the user
   try {
     await interaction.user.send(
       `🔗 **Verify your Roblox account:**\n${verifyUrl}\n\nThis link is single-use and expires after use.`
     );
     await interaction.reply({ content: '📬 Check your DMs!', ephemeral: true });
   } catch {
-    await interaction.reply({ content: '❌ I couldn\'t DM you. Please open your DMs and try again.', ephemeral: true });
+    await interaction.reply({ content: "❌ I couldn't DM you. Please open your DMs and try again.", ephemeral: true });
   }
 }
 
-// Your bot's check command
 async function handleWhois(interaction) {
   const targetId = interaction.options.getUser('user')?.id ?? interaction.user.id;
 
   const res = await fetch(`${VERIFY_API}/verification/${targetId}`, {
-    headers: { Authorization: `Bearer ${process.env.BOT_API_KEY}` },
+    headers: { Authorization: `Bearer ${API_KEY}` },
   });
 
   if (res.status === 404) {
@@ -289,11 +348,17 @@ async function handleWhois(interaction) {
 
 ---
 
+## Legacy Auth (Deprecated)
+
+If you haven't migrated to developer keys yet, you can still send a `secret` in the JSON body for token creation, or use `BOT_API_KEY` as a Bearer token for lookups. These will be removed in a future update.
+
+---
+
 ## Rate Limits & Fair Use
 
 - Tokens are **one-time use**. Once consumed during a successful verification, they cannot be reused.
 - Unused tokens remain valid indefinitely (until used).
-- No hard rate limits are enforced, but abuse will result in your `API_SECRET` or `BOT_API_KEY` being rotated.
+- No hard rate limits are enforced, but abuse will result in your API key being revoked.
 
 ---
 

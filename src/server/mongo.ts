@@ -99,3 +99,93 @@ export async function consumeToken(token: string): Promise<boolean> {
   return r.modifiedCount > 0;
 }
 
+// ── Developer API Keys ──────────────────────────────────────────────
+
+export interface ApiKey {
+  key: string;
+  type: "server" | "global";
+  ownerId: string;
+  ownerName: string;
+  guildId: string | null;
+  guildName: string | null;
+  label: string;
+  createdAt: Date;
+  authorized: boolean; // global keys need staff approval
+  authorizedBy: string | null;
+  authorizedAt: Date | null;
+  lastUsed: Date | null;
+  revoked: boolean;
+}
+
+export async function apiKeys(): Promise<Collection<ApiKey>> {
+  const db = await getDb();
+  const col = db.collection<ApiKey>("api_keys");
+  await col.createIndex({ key: 1 }, { unique: true }).catch(() => {});
+  await col.createIndex({ ownerId: 1 }).catch(() => {});
+  await col.createIndex({ guildId: 1 }).catch(() => {});
+  return col;
+}
+
+export async function createApiKey(params: {
+  type: "server" | "global";
+  ownerId: string;
+  ownerName: string;
+  guildId: string | null;
+  guildName: string | null;
+  label: string;
+}): Promise<string> {
+  const crypto = await import("crypto");
+  const prefix = params.type === "global" ? "insight_global_" : "insight_server_";
+  const key = prefix + crypto.randomBytes(24).toString("hex");
+  const col = await apiKeys();
+  await col.insertOne({
+    key,
+    type: params.type,
+    ownerId: params.ownerId,
+    ownerName: params.ownerName,
+    guildId: params.guildId,
+    guildName: params.guildName,
+    label: params.label,
+    createdAt: new Date(),
+    authorized: params.type === "server", // server keys auto-authorized, global needs staff
+    authorizedBy: null,
+    authorizedAt: params.type === "server" ? new Date() : null,
+    lastUsed: null,
+    revoked: false,
+  });
+  return key;
+}
+
+export async function validateApiKey(key: string): Promise<ApiKey | null> {
+  const col = await apiKeys();
+  const doc = await col.findOne({ key, authorized: true, revoked: false });
+  if (!doc) return null;
+  // Update lastUsed
+  await col.updateOne({ key }, { $set: { lastUsed: new Date() } }).catch(() => {});
+  return doc;
+}
+
+export async function listApiKeysByOwner(ownerId: string): Promise<ApiKey[]> {
+  const col = await apiKeys();
+  return col.find({ ownerId, revoked: false }).sort({ createdAt: -1 }).toArray();
+}
+
+export async function revokeApiKey(key: string, ownerId: string): Promise<boolean> {
+  const col = await apiKeys();
+  const r = await col.updateOne({ key, ownerId }, { $set: { revoked: true } });
+  return r.modifiedCount > 0;
+}
+
+export async function authorizeGlobalKey(
+  key: string,
+  authorizedBy: string,
+): Promise<boolean> {
+  const col = await apiKeys();
+  const r = await col.updateOne(
+    { key, type: "global", revoked: false },
+    { $set: { authorized: true, authorizedBy, authorizedAt: new Date() } },
+  );
+  return r.modifiedCount > 0;
+}
+
+
