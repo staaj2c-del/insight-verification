@@ -15,17 +15,21 @@ export const Route = createFileRoute("/api/auth/ip-login")({
         const ip = getClientIp(request);
 
         if (ip === "0.0.0.0") {
+          const failUrl = new URL(redirectTo, url.origin);
+          failUrl.searchParams.set("ip_checked", "1");
           return new Response(null, {
             status: 302,
-            headers: { Location: `${url.origin}${redirectTo}` },
+            headers: { Location: failUrl.toString() },
           });
         }
 
         const ipSession = await getSessionByIp(ip);
         if (!ipSession) {
+          const failUrl = new URL(redirectTo, url.origin);
+          failUrl.searchParams.set("ip_checked", "1");
           return new Response(null, {
             status: 302,
-            headers: { Location: `${url.origin}${redirectTo}` },
+            headers: { Location: failUrl.toString() },
           });
         }
 
@@ -49,4 +53,5 @@ export const Route = createFileRoute("/api/auth/ip-login")({
     },
   },
 });
+
 

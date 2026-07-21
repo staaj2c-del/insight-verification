@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, Link, redirect } from "@tanstack/react-router";
 import { createContext, useContext } from "react";
-import { resolveDashboardSession, getDashboardGuilds, getDashboardKeys, getIpDashboardSession } from "@/lib/dashboard-fns";
+import { resolveDashboardSession, getDashboardGuilds, getDashboardKeys } from "@/lib/dashboard-fns";
 
 // ── Pure helper (no server deps) ───────────────────────────────────
 const MANAGE_GUILD = 0x20n;
@@ -77,8 +77,9 @@ export const Route = createFileRoute("/dashboard")({
 
     // ── IP-based auto sign-in: redirect to IP login endpoint ──
     if (!session && ip) {
-      const ipSession = await getIpDashboardSession({ data: { ip } });
-      if (ipSession) {
+      // Prevent redirect loop: if we already tried IP login, show login gate
+      const url = new URL(request.url);
+      if (url.searchParams.get("ip_checked") !== "1") {
         throw redirect({ to: `/api/auth/ip-login?redirect_to=/dashboard` });
       }
     }
@@ -264,6 +265,11 @@ function Footer() {
     </footer>
   );
 }
+
+
+
+
+
 
 
 
