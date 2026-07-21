@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ApiDocsRouteImport } from './routes/api/docs'
 import { Route as VerifyErrorRouteImport } from './routes/verify.error'
 import { Route as VerifySuccessRouteImport } from './routes/verify.success'
 import { Route as ApiPublicKeysRouteImport } from './routes/api/public/keys'
@@ -32,6 +33,11 @@ const IndexRoute = IndexRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDocsRoute = ApiDocsRouteImport.update({
+  id: '/api/docs',
+  path: '/api/docs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const VerifyErrorRoute = VerifyErrorRouteImport.update({
@@ -99,6 +105,7 @@ const ApiPublicVerificationDiscordIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/api/docs': typeof ApiDocsRoute
   '/verify/error': typeof VerifyErrorRoute
   '/verify/success': typeof VerifySuccessRoute
   '/api/public/keys': typeof ApiPublicKeysRouteWithChildren
@@ -115,6 +122,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/api/docs': typeof ApiDocsRoute
   '/verify/error': typeof VerifyErrorRoute
   '/verify/success': typeof VerifySuccessRoute
   '/api/public/keys': typeof ApiPublicKeysRouteWithChildren
@@ -132,6 +140,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
+  '/api/docs': typeof ApiDocsRoute
   '/verify/error': typeof VerifyErrorRoute
   '/verify/success': typeof VerifySuccessRoute
   '/api/public/keys': typeof ApiPublicKeysRouteWithChildren
@@ -150,6 +159,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/api/docs'
     | '/verify/error'
     | '/verify/success'
     | '/api/public/keys'
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/dashboard'
+    | '/api/docs'
     | '/verify/error'
     | '/verify/success'
     | '/api/public/keys'
@@ -182,6 +193,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/dashboard'
+    | '/api/docs'
     | '/verify/error'
     | '/verify/success'
     | '/api/public/keys'
@@ -199,6 +211,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
+  ApiDocsRoute: typeof ApiDocsRoute
   VerifyErrorRoute: typeof VerifyErrorRoute
   VerifySuccessRoute: typeof VerifySuccessRoute
   ApiPublicKeysRoute: typeof ApiPublicKeysRouteWithChildren
@@ -226,6 +239,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/docs': {
+      id: '/api/docs'
+      path: '/api/docs'
+      fullPath: '/api/docs'
+      preLoaderRoute: typeof ApiDocsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/verify/error': {
@@ -330,6 +350,7 @@ const ApiPublicKeysRouteWithChildren = ApiPublicKeysRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
+  ApiDocsRoute: ApiDocsRoute,
   VerifyErrorRoute: VerifyErrorRoute,
   VerifySuccessRoute: VerifySuccessRoute,
   ApiPublicKeysRoute: ApiPublicKeysRouteWithChildren,

@@ -26,3 +26,17 @@ export const getVerifySession = createServerFn({ method: "POST" })
     };
   });
 
+/** Look up a returning user by IP when no session cookie exists. */
+export const getIpSession = createServerFn({ method: "POST" })
+  .validator((data: unknown) => {
+    if (typeof data === "object" && data !== null && "ip" in data) {
+      return data as { ip: string };
+    }
+    return { ip: "0.0.0.0" };
+  })
+  .handler(async ({ data }) => {
+    const { getSessionByIp } = await import("@/server/session");
+    return getSessionByIp(data.ip);
+  });
+
+

@@ -19,9 +19,30 @@ function getSessionIdFromCookie(request: Request | undefined): string | null {
 export const Route = createFileRoute("/")({
   loader: async ({ request }) => {
     const sessionId = getSessionIdFromCookie(request);
-    if (!sessionId) return { session: null };
-    const session = await getVerifySession({ data: { sessionId } });
-    return { session };
+    if (sessionId) {
+      const session = await getVerifySession({ data: { sessionId } });
+      if (session) return { session };
+    }
+    // No cookie session — try IP-based persistent login
+    if (request) {
+      const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+        ?? request.headers.get("x-real-ip")
+        ?? null;
+      if (ip) {
+        const { getIpSession } = await import("@/lib/verify-fns");
+        const ipSession = await getIpSession({ data: { ip } });
+        if (ipSession) {
+          return {
+            session: {
+              discordId: ipSession.discordId,
+              discordUsername: ipSession.discordUsername,
+              discordAvatar: ipSession.discordAvatar,
+            },
+          };
+        }
+      }
+    }
+    return { session: null };
   },
   component: Index,
   head: () => ({
@@ -182,9 +203,5 @@ function Index() {
     </div>
   );
 }
-
-
-
-
 
 

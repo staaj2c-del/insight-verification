@@ -1,11 +1,10 @@
 import "@tanstack/react-start";
 import { createFileRoute } from "@tanstack/react-router";
 import { exchangeDiscordCode, fetchDiscordUser } from "@/server/discord";
-import { createSession, setSessionCookie } from "@/server/session";
+import { createSession, saveIpSession, setSessionCookie, getClientIp } from "@/server/session";
 
 // GET /api/auth/discord/callback?code=...&state=...
 // Discord redirects here after the user authorizes.
-// The `state` param contains { redirect_to, nonce }.
 export const Route = createFileRoute("/api/auth/discord/callback")({
   server: {
     handlers: {
@@ -15,7 +14,6 @@ export const Route = createFileRoute("/api/auth/discord/callback")({
         const rawState = url.searchParams.get("state");
         const error = url.searchParams.get("error");
 
-        // Parse the redirect target from state
         let redirectTo = "/dashboard";
         try {
           if (rawState) {
@@ -24,7 +22,7 @@ export const Route = createFileRoute("/api/auth/discord/callback")({
               redirectTo = parsed.redirect_to;
             }
           }
-        } catch { /* ignore bad state, use default */ }
+        } catch { /* ignore */ }
 
         if (error) {
           return new Response(null, {
@@ -55,7 +53,16 @@ export const Route = createFileRoute("/api/auth/discord/callback")({
             refreshToken: token.refresh_token,
           });
 
-          // Append discord_id if redirecting to verify page
+          // Save IP → Discord mapping for persistent returning-user recognition
+          const ip = getClientIp(request);
+          await saveIpSession(ip, {
+            discordId: user.id,
+            discordUsername: user.global_name ?? user.username,
+            discordAvatar: user.avatar
+              ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`
+              : null,
+          });
+
           let location = `${url.origin}${redirectTo}`;
           if (redirectTo === "/" || redirectTo === "") {
             location = `${url.origin}/?discord_id=${encodeURIComponent(user.id)}`;
