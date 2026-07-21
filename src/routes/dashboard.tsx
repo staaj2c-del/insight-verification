@@ -5,6 +5,17 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { getDashboardSession, getDashboardGuilds, getDashboardKeys } from "@/lib/dashboard-fns";
 
+/** Parse the `ibs` session cookie from the incoming request. */
+function getSessionIdFromCookie(request: Request): string | null {
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  const match = cookieHeader
+    .split(";")
+    .map((c) => c.trim())
+    .find((c) => c.startsWith("ibs="));
+  if (!match) return null;
+  return decodeURIComponent(match.slice("ibs=".length));
+}
+
 // ── Pure helper (no server deps) ───────────────────────────────────
 const MANAGE_GUILD = 0x20n;
 const ADMINISTRATOR = 0x8n;
@@ -34,14 +45,15 @@ interface LoaderKey {
 }
 
 export const Route = createFileRoute("/dashboard")({
-  loader: async () => {
-    const session = await getDashboardSession();
+  loader: async ({ request }) => {
+    const sessionId = getSessionIdFromCookie(request);
+    const session = await getDashboardSession({ data: { sessionId } });
     if (!session) {
       return { session: null, guilds: [], keys: [] };
     }
     const [guilds, keys] = await Promise.all([
-      getDashboardGuilds(),
-      getDashboardKeys(),
+      getDashboardGuilds({ data: { sessionId } }),
+      getDashboardKeys({ data: { sessionId } }),
     ]);
     return { session, guilds: guilds ?? [], keys: keys ?? [] } as {
       session: LoaderSession;
@@ -344,5 +356,7 @@ function Footer() {
     </footer>
   );
 }
+
+
 
 

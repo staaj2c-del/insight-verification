@@ -1,14 +1,22 @@
 import { createServerFn } from "@tanstack/react-start";
 
-/** Check Discord login session from the verify landing page. */
-export const getVerifySession = createServerFn({ method: "GET" }).handler(
-  async () => {
-    const { getSession, getSessionIdFromRequest } = await import("@/server/session");
-    const { getWebRequest } = await import("@tanstack/react-start/server");
-    const request = getWebRequest();
-    if (!request) return null;
-    const sessionId = getSessionIdFromRequest(request);
+/**
+ * Resolve a dashboard session by its session ID.
+ * The loader parses the `ibs` cookie from the incoming request and passes
+ * the decoded session ID here. We avoid `getWebRequest()` because it is
+ * not available on the Vercel serverless runtime.
+ */
+export const getVerifySession = createServerFn({ method: "POST" })
+  .validator((data: unknown) => {
+    if (typeof data === "object" && data !== null && "sessionId" in data) {
+      return data as { sessionId: string | null };
+    }
+    return { sessionId: null };
+  })
+  .handler(async ({ data }) => {
+    const { sessionId } = data;
     if (!sessionId) return null;
+    const { getSession } = await import("@/server/session");
     const session = await getSession(sessionId);
     if (!session) return null;
     return {
@@ -16,6 +24,5 @@ export const getVerifySession = createServerFn({ method: "GET" }).handler(
       discordUsername: session.discordUsername,
       discordAvatar: session.discordAvatar,
     };
-  },
-);
+  });
 

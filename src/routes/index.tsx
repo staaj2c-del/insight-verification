@@ -4,9 +4,21 @@ import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { getVerifySession } from "@/lib/verify-fns";
 
+/** Parse the `ibs` session cookie from the incoming request. */
+function getSessionIdFromCookie(request: Request): string | null {
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  const match = cookieHeader
+    .split(";")
+    .map((c) => c.trim())
+    .find((c) => c.startsWith("ibs="));
+  if (!match) return null;
+  return decodeURIComponent(match.slice("ibs=".length));
+}
+
 export const Route = createFileRoute("/")({
-  loader: async () => {
-    const session = await getVerifySession();
+  loader: async ({ request }) => {
+    const sessionId = getSessionIdFromCookie(request);
+    const session = await getVerifySession({ data: { sessionId } });
     return { session };
   },
   component: Index,
@@ -168,6 +180,8 @@ function Index() {
     </div>
   );
 }
+
+
 
 
 
