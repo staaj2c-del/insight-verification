@@ -34,11 +34,13 @@ Still supported but deprecated for new bots. See [Legacy Auth](#legacy-auth) at 
 
 | Setting | Value |
 |---|---|
-| **Discord OAuth Scopes** | `identify` `guilds` |
+| **Discord OAuth Link** | `https://discord.com/oauth2/authorize?client_id=1394833496580689980&response_type=code&redirect_uri=https%3A%2F%2Fverify.insightbot.online%2Fapi%2Fauth%2Fdiscord%2Fcallback&scope=identify+guilds` |
+| **Client ID** | `1394833496580689980` |
+| **Scopes** | `identify` `guilds` |
 | **Redirect URI / Callback** | `https://verify.insightbot.online/api/auth/discord/callback` |
 | **Dashboard URL** | `https://verify.insightbot.online/dashboard` |
 
-Go to the [Discord Developer Portal](https://discord.com/developers/applications) → OAuth2 → add the redirect URI above.
+Make sure the redirect URI above is added in the [Discord Developer Portal](https://discord.com/developers/applications/1394833496580689980/oauth2) → OAuth2 → Redirects.
 
 ---
 
@@ -364,4 +366,5 @@ If you haven't migrated to developer keys yet, you can still send a `secret` in 
 
 *Last updated: 2026-07-21*
 *Maintained by Insight Bot — [insightbot.online](https://insightbot.online)*
+
 
