@@ -15,6 +15,7 @@ import { Route as ApiDocsRouteImport } from './routes/api/docs'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
 import { Route as DashboardKeysRouteImport } from './routes/dashboard/keys'
 import { Route as DashboardOverviewRouteImport } from './routes/dashboard/overview'
+import { Route as DashboardStaffRouteImport } from './routes/dashboard/staff'
 import { Route as VerifyErrorRouteImport } from './routes/verify.error'
 import { Route as VerifySuccessRouteImport } from './routes/verify.success'
 import { Route as ApiPublicKeysRouteImport } from './routes/api/public/keys'
@@ -56,6 +57,11 @@ const DashboardKeysRoute = DashboardKeysRouteImport.update({
 const DashboardOverviewRoute = DashboardOverviewRouteImport.update({
   id: '/overview',
   path: '/overview',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardStaffRoute = DashboardStaffRouteImport.update({
+  id: '/staff',
+  path: '/staff',
   getParentRoute: () => DashboardRoute,
 } as any)
 const VerifyErrorRoute = VerifyErrorRouteImport.update({
@@ -126,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/api/docs': typeof ApiDocsRoute
   '/dashboard/keys': typeof DashboardKeysRoute
   '/dashboard/overview': typeof DashboardOverviewRoute
+  '/dashboard/staff': typeof DashboardStaffRoute
   '/verify/error': typeof VerifyErrorRoute
   '/verify/success': typeof VerifySuccessRoute
   '/dashboard/': typeof DashboardIndexRoute
@@ -145,6 +152,7 @@ export interface FileRoutesByTo {
   '/api/docs': typeof ApiDocsRoute
   '/dashboard/keys': typeof DashboardKeysRoute
   '/dashboard/overview': typeof DashboardOverviewRoute
+  '/dashboard/staff': typeof DashboardStaffRoute
   '/verify/error': typeof VerifyErrorRoute
   '/verify/success': typeof VerifySuccessRoute
   '/dashboard': typeof DashboardIndexRoute
@@ -166,6 +174,7 @@ export interface FileRoutesById {
   '/api/docs': typeof ApiDocsRoute
   '/dashboard/keys': typeof DashboardKeysRoute
   '/dashboard/overview': typeof DashboardOverviewRoute
+  '/dashboard/staff': typeof DashboardStaffRoute
   '/verify/error': typeof VerifyErrorRoute
   '/verify/success': typeof VerifySuccessRoute
   '/dashboard/': typeof DashboardIndexRoute
@@ -188,6 +197,7 @@ export interface FileRouteTypes {
     | '/api/docs'
     | '/dashboard/keys'
     | '/dashboard/overview'
+    | '/dashboard/staff'
     | '/verify/error'
     | '/verify/success'
     | '/dashboard/'
@@ -207,6 +217,7 @@ export interface FileRouteTypes {
     | '/api/docs'
     | '/dashboard/keys'
     | '/dashboard/overview'
+    | '/dashboard/staff'
     | '/verify/error'
     | '/verify/success'
     | '/dashboard'
@@ -227,6 +238,7 @@ export interface FileRouteTypes {
     | '/api/docs'
     | '/dashboard/keys'
     | '/dashboard/overview'
+    | '/dashboard/staff'
     | '/verify/error'
     | '/verify/success'
     | '/dashboard/'
@@ -301,6 +313,13 @@ declare module '@tanstack/react-router' {
       path: '/overview'
       fullPath: '/dashboard/overview'
       preLoaderRoute: typeof DashboardOverviewRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/staff': {
+      id: '/dashboard/staff'
+      path: '/staff'
+      fullPath: '/dashboard/staff'
+      preLoaderRoute: typeof DashboardStaffRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/verify/error': {
@@ -393,12 +412,14 @@ declare module '@tanstack/react-router' {
 interface DashboardRouteChildren {
   DashboardKeysRoute: typeof DashboardKeysRoute
   DashboardOverviewRoute: typeof DashboardOverviewRoute
+  DashboardStaffRoute: typeof DashboardStaffRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardKeysRoute: DashboardKeysRoute,
   DashboardOverviewRoute: DashboardOverviewRoute,
+  DashboardStaffRoute: DashboardStaffRoute,
   DashboardIndexRoute: DashboardIndexRoute,
 }
 

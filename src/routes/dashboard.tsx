@@ -83,6 +83,7 @@ function Dashboard() {
     { to: "/dashboard/overview", label: "Overview", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1" },
     { to: "/dashboard/keys", label: "API Keys", icon: "M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" },
     { to: "/api/docs", label: "API Docs", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
+    { to: "/dashboard/staff", label: "Staff Panel", icon: "M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2m12-6a4 4 0 10-8 0m10 6a4 4 0 01-4 4m-6-4a4 4 0 014-4", badge: true },
   ];
 
   if (!session) {
@@ -124,6 +125,9 @@ function Dashboard() {
               <nav className="sticky top-20 space-y-1">
                 {navItems.map((item) => {
                   const isExternal = item.to.startsWith("/api/");
+                  const badgeEl = (item as { badge?: boolean }).badge ? (
+                    <span className="ml-auto rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-bold text-destructive-foreground">STAFF</span>
+                  ) : null;
                   if (isExternal) {
                     return (
                       <a
@@ -146,6 +150,7 @@ function Dashboard() {
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={item.icon}/></svg>
                       {item.label}
+                      {badgeEl}
                     </Link>
                   );
                 })}
@@ -156,10 +161,14 @@ function Dashboard() {
             <div className="md:hidden w-full mb-4 flex gap-1 overflow-x-auto pb-1">
               {navItems.map((item) => {
                 const isExternal = item.to.startsWith("/api/");
+                const badgeEl = (item as { badge?: boolean }).badge ? (
+                  <span className="ml-0.5 rounded-full bg-destructive px-1 py-0.5 text-[9px] font-bold text-destructive-foreground">STAFF</span>
+                ) : null;
                 if (isExternal) {
                   return (
-                    <a key={item.to} href={item.to} className="shrink-0 rounded-full px-3 py-1.5 text-xs border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors">
+                    <a key={item.to} href={item.to} className="shrink-0 rounded-full px-3 py-1.5 text-xs border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors inline-flex items-center gap-1">
                       {item.label}
+                      {badgeEl}
                     </a>
                   );
                 }
@@ -169,9 +178,10 @@ function Dashboard() {
                     to={item.to}
                     activeProps={{ className: "bg-primary/10 text-primary border-primary/30 font-medium" }}
                     inactiveProps={{ className: "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30" }}
-                    className="shrink-0 rounded-full px-3 py-1.5 text-xs border transition-colors"
+                    className="shrink-0 rounded-full px-3 py-1.5 text-xs border transition-colors inline-flex items-center gap-1"
                   >
                     {item.label}
+                    {badgeEl}
                   </Link>
                 );
               })}
@@ -220,5 +230,7 @@ function Footer() {
     </footer>
   );
 }
+
+
 
 
