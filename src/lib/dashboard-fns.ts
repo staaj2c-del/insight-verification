@@ -27,33 +27,6 @@ export const resolveDashboardSession = createServerFn({ method: "POST" })
     };
   });
 
-/**
- * Resolve a dashboard session by its session ID.
- * The loader parses the `ibs` cookie from the incoming request and passes
- * the decoded session ID here. Avoids `getCookie` since server functions
- * lose the original request context on serverless runtimes.
- */
-export const getDashboardSession = createServerFn({ method: "POST" })
-  .validator((data: unknown) => {
-    if (typeof data === "object" && data !== null && "sessionId" in data) {
-      return data as { sessionId: string | null };
-    }
-    return { sessionId: null };
-  })
-  .handler(async ({ data }) => {
-    const { sessionId } = data;
-    if (!sessionId) return null;
-    const { getSession } = await import("@/server/session");
-    const session = await getSession(sessionId);
-    if (!session) return null;
-    return {
-      discordId: session.discordId,
-      discordUsername: session.discordUsername,
-      discordAvatar: session.discordAvatar,
-      accessToken: session.accessToken,
-    };
-  });
-
 export const getDashboardGuilds = createServerFn({ method: "POST" })
   .validator((data: unknown) => {
     if (typeof data === "object" && data !== null && "sessionId" in data) {
@@ -107,6 +80,4 @@ export const getDashboardKeys = createServerFn({ method: "POST" })
     if (!session) return [];
     return listApiKeysByOwner(session.discordId);
   });
-
-
 

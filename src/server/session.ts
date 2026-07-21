@@ -44,8 +44,8 @@ export async function createSession(user: {
   discordId: string;
   discordUsername: string;
   discordAvatar: string | null;
-  accessToken: string;
-  refreshToken: string;
+  accessToken?: string;
+  refreshToken?: string;
 }): Promise<string> {
   const crypto = await import("crypto");
   const sessionId = crypto.randomUUID();
@@ -57,8 +57,8 @@ export async function createSession(user: {
     discordId: user.discordId,
     discordUsername: user.discordUsername,
     discordAvatar: user.discordAvatar,
-    accessToken: user.accessToken,
-    refreshToken: user.refreshToken,
+    accessToken: user.accessToken ?? "",
+    refreshToken: user.refreshToken ?? "",
     expiresAt,
     createdAt: new Date(),
   });
@@ -141,4 +141,6 @@ export function setSessionCookie(sessionId: string, maxAge: number): string {
 export function clearSessionCookie(): string {
   return `ibs=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
 }
+
+
 

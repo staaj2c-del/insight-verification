@@ -31,15 +31,27 @@ import {
 } from "@/components/ui/table";
 import { UserX, ShieldBan, Globe, Search, Check, X, Trash2, Shield, User, MapPin, Crown, UserPlus } from "lucide-react";
 
+function getSessionIdFromCookie(request: Request | undefined): string | null {
+  if (!request) return null;
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  const match = cookieHeader
+    .split(";")
+    .map((c) => c.trim())
+    .find((c) => c.startsWith("ibs="));
+  if (!match) return null;
+  return decodeURIComponent(match.slice("ibs=".length));
+}
+
 export const Route = createFileRoute("/dashboard/staff")({
-  loader: async () => {
+  loader: async ({ request }) => {
+    const sessionId = getSessionIdFromCookie(request);
     try {
-      const staff = await getStaffContext();
+      const staff = await getStaffContext({ data: { sessionId } });
       if (!staff) throw redirect({ to: "/dashboard/overview" });
       const [pendingKeys, verifications, blacklists] = await Promise.all([
-        getPendingGlobalKeys(),
-        getAllVerifications({ data: { page: 1, limit: 20 } }),
-        getBlacklists(),
+        getPendingGlobalKeys({ data: { sessionId } }),
+        getAllVerifications({ data: { page: 1, limit: 20, sessionId } }),
+        getBlacklists({ data: { sessionId } }),
       ]);
       return { error: null, staff, pendingKeys: pendingKeys ?? [], verifications, blacklists: blacklists ?? [] };
     } catch (e) {
@@ -754,4 +766,5 @@ function StaffPanel() {
     </div>
   );
 }
+
 

@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, Link } from "@tanstack/react-router";
+import { createFileRoute, Outlet, Link, redirect } from "@tanstack/react-router";
 import { createContext, useContext } from "react";
 import { resolveDashboardSession, getDashboardGuilds, getDashboardKeys, getIpDashboardSession } from "@/lib/dashboard-fns";
 
@@ -8,6 +8,25 @@ const ADMINISTRATOR = 0x8n;
 export function canManageGuild(permissions: string): boolean {
   const perms = BigInt(permissions);
   return (perms & MANAGE_GUILD) !== 0n || (perms & ADMINISTRATOR) !== 0n;
+}
+
+// ── Cookie parser — same proven pattern from index.tsx ─────────────
+function getSessionIdFromCookie(request: Request | undefined): string | null {
+  if (!request) return null;
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  const match = cookieHeader
+    .split(";")
+    .map((c) => c.trim())
+    .find((c) => c.startsWith("ibs="));
+  if (!match) return null;
+  return decodeURIComponent(match.slice("ibs=".length));
+}
+
+function getClientIp(request: Request | undefined): string | null {
+  if (!request) return null;
+  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    ?? request.headers.get("x-real-ip")
+    ?? null;
 }
 
 // ── Types for loader data ──
@@ -45,52 +64,35 @@ export function useDashboard() {
 
 export const Route = createFileRoute("/dashboard")({
   loader: async ({ request }) => {
-    // Read ibs cookie from the raw request (same pattern as index.tsx).
-    const cookieHeader = request?.headers?.get?.("cookie") ?? "";
-    const match = cookieHeader
-      .split(";")
-      .map((c: string) => c.trim())
-      .find((c: string) => c.startsWith("ibs="));
-    const sessionId = match ? decodeURIComponent(match.slice("ibs=".length)) : null;
+    const sessionId = getSessionIdFromCookie(request);
 
+    const ip = getClientIp(request);
+
+    // ── Resolve session from cookie ──
     let session = null as LoaderSession | null;
     if (sessionId) {
       const s = await resolveDashboardSession({ data: { sessionId } });
       if (s) session = s as LoaderSession;
     }
 
-    // IP-based fallback (like index.tsx)
-    if (!session && request) {
-      const ip = request.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim()
-        ?? request.headers?.get?.("x-real-ip")
-        ?? null;
-      if (ip) {
-        const ipSession = await getIpDashboardSession({ data: { ip } });
-        if (ipSession) {
-          session = {
-            sessionId: "ip-" + ipSession.discordId,
-            discordId: ipSession.discordId,
-            discordUsername: ipSession.discordUsername,
-            discordAvatar: ipSession.discordAvatar,
-            accessToken: "",
-          };
-        }
+    // ── IP-based auto sign-in: redirect to IP login endpoint ──
+    if (!session && ip) {
+      const ipSession = await getIpDashboardSession({ data: { ip } });
+      if (ipSession) {
+        throw redirect({ to: `/api/auth/ip-login?redirect_to=/dashboard` });
       }
     }
 
     if (!session) {
-      return { session: null, guilds: [], keys: [] };
+      return { session: null, guilds: [] as LoaderGuild[], keys: [] as LoaderKey[] };
     }
 
     const [guilds, keys] = await Promise.all([
-      getDashboardGuilds({ data: { sessionId: session.sessionId } }),
-      getDashboardKeys({ data: { sessionId: session.sessionId } }),
+      getDashboardGuilds({ data: { sessionId: session.sessionId } }).catch(() => [] as LoaderGuild[]),
+      getDashboardKeys({ data: { sessionId: session.sessionId } }).catch(() => [] as LoaderKey[]),
     ]);
-    return { session, guilds: guilds ?? [], keys: keys ?? [] } as {
-      session: LoaderSession;
-      guilds: LoaderGuild[];
-      keys: LoaderKey[];
-    };
+
+    return { session, guilds, keys };
   },
   component: Dashboard,
   head: () => ({
@@ -107,11 +109,12 @@ function Dashboard() {
     guilds: LoaderGuild[];
     keys: LoaderKey[];
   };
-  const { session, guilds, keys } = data;
+  const session = data.session;
+  const guilds = data.guilds ?? [];
+  const keys = data.keys ?? [];
 
-  // Sidebar nav items
   const navItems = [
-    { to: "/dashboard/overview", label: "Overview", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1" },
+    { to: "/dashboard/overview", label: "Overview", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
     { to: "/dashboard/keys", label: "API Keys", icon: "M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" },
     { to: "/api/docs", label: "API Docs", icon: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" },
     { to: "/dashboard/staff", label: "Staff Panel", icon: "M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2m12-6a4 4 0 10-8 0m10 6a4 4 0 01-4 4m-6-4a4 4 0 014-4", badge: true },
@@ -261,7 +264,6 @@ function Footer() {
     </footer>
   );
 }
-
 
 
 

@@ -16,7 +16,7 @@ export const Route = createFileRoute("/api/auth/discord/start")({
 
         const url = new URL(request.url);
         const redirectTo = url.searchParams.get("redirect_to") || "/dashboard";
-        const redirectUri = `${url.origin}/api/auth/discord/callback`;
+        const redirectUri = process.env.DISCORD_REDIRECT_URI || `${url.origin}/api/auth/discord/callback`;
 
         // Encode redirect target + nonce in state to prevent CSRF
         const nonce = crypto.randomUUID();
@@ -38,4 +38,5 @@ export const Route = createFileRoute("/api/auth/discord/start")({
     },
   },
 });
+
 

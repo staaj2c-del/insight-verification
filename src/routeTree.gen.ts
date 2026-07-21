@@ -18,6 +18,7 @@ import { Route as DashboardOverviewRouteImport } from './routes/dashboard/overvi
 import { Route as DashboardStaffRouteImport } from './routes/dashboard/staff'
 import { Route as VerifyErrorRouteImport } from './routes/verify.error'
 import { Route as VerifySuccessRouteImport } from './routes/verify.success'
+import { Route as ApiAuthIpLoginRouteImport } from './routes/api/auth/ip-login'
 import { Route as ApiPublicKeysRouteImport } from './routes/api/public/keys'
 import { Route as ApiPublicTokensRouteImport } from './routes/api/public/tokens'
 import { Route as ApiAuthDiscordCallbackRouteImport } from './routes/api/auth/discord/callback'
@@ -72,6 +73,11 @@ const VerifyErrorRoute = VerifyErrorRouteImport.update({
 const VerifySuccessRoute = VerifySuccessRouteImport.update({
   id: '/verify/success',
   path: '/verify/success',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthIpLoginRoute = ApiAuthIpLoginRouteImport.update({
+  id: '/api/auth/ip-login',
+  path: '/api/auth/ip-login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicKeysRoute = ApiPublicKeysRouteImport.update({
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/verify/error': typeof VerifyErrorRoute
   '/verify/success': typeof VerifySuccessRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/api/auth/ip-login': typeof ApiAuthIpLoginRoute
   '/api/public/keys': typeof ApiPublicKeysRouteWithChildren
   '/api/public/tokens': typeof ApiPublicTokensRoute
   '/api/auth/discord/callback': typeof ApiAuthDiscordCallbackRoute
@@ -156,6 +163,7 @@ export interface FileRoutesByTo {
   '/verify/error': typeof VerifyErrorRoute
   '/verify/success': typeof VerifySuccessRoute
   '/dashboard': typeof DashboardIndexRoute
+  '/api/auth/ip-login': typeof ApiAuthIpLoginRoute
   '/api/public/keys': typeof ApiPublicKeysRouteWithChildren
   '/api/public/tokens': typeof ApiPublicTokensRoute
   '/api/auth/discord/callback': typeof ApiAuthDiscordCallbackRoute
@@ -178,6 +186,7 @@ export interface FileRoutesById {
   '/verify/error': typeof VerifyErrorRoute
   '/verify/success': typeof VerifySuccessRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/api/auth/ip-login': typeof ApiAuthIpLoginRoute
   '/api/public/keys': typeof ApiPublicKeysRouteWithChildren
   '/api/public/tokens': typeof ApiPublicTokensRoute
   '/api/auth/discord/callback': typeof ApiAuthDiscordCallbackRoute
@@ -201,6 +210,7 @@ export interface FileRouteTypes {
     | '/verify/error'
     | '/verify/success'
     | '/dashboard/'
+    | '/api/auth/ip-login'
     | '/api/public/keys'
     | '/api/public/tokens'
     | '/api/auth/discord/callback'
@@ -221,6 +231,7 @@ export interface FileRouteTypes {
     | '/verify/error'
     | '/verify/success'
     | '/dashboard'
+    | '/api/auth/ip-login'
     | '/api/public/keys'
     | '/api/public/tokens'
     | '/api/auth/discord/callback'
@@ -242,6 +253,7 @@ export interface FileRouteTypes {
     | '/verify/error'
     | '/verify/success'
     | '/dashboard/'
+    | '/api/auth/ip-login'
     | '/api/public/keys'
     | '/api/public/tokens'
     | '/api/auth/discord/callback'
@@ -260,6 +272,7 @@ export interface RootRouteChildren {
   ApiDocsRoute: typeof ApiDocsRoute
   VerifyErrorRoute: typeof VerifyErrorRoute
   VerifySuccessRoute: typeof VerifySuccessRoute
+  ApiAuthIpLoginRoute: typeof ApiAuthIpLoginRoute
   ApiPublicKeysRoute: typeof ApiPublicKeysRouteWithChildren
   ApiPublicTokensRoute: typeof ApiPublicTokensRoute
   ApiAuthDiscordCallbackRoute: typeof ApiAuthDiscordCallbackRoute
@@ -334,6 +347,13 @@ declare module '@tanstack/react-router' {
       path: '/verify/success'
       fullPath: '/verify/success'
       preLoaderRoute: typeof VerifySuccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/ip-login': {
+      id: '/api/auth/ip-login'
+      path: '/api/auth/ip-login'
+      fullPath: '/api/auth/ip-login'
+      preLoaderRoute: typeof ApiAuthIpLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/keys': {
@@ -445,6 +465,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDocsRoute: ApiDocsRoute,
   VerifyErrorRoute: VerifyErrorRoute,
   VerifySuccessRoute: VerifySuccessRoute,
+  ApiAuthIpLoginRoute: ApiAuthIpLoginRoute,
   ApiPublicKeysRoute: ApiPublicKeysRouteWithChildren,
   ApiPublicTokensRoute: ApiPublicTokensRoute,
   ApiAuthDiscordCallbackRoute: ApiAuthDiscordCallbackRoute,

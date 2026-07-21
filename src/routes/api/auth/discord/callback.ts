@@ -39,7 +39,7 @@ export const Route = createFileRoute("/api/auth/discord/callback")({
         }
 
         try {
-          const redirectUri = `${url.origin}/api/auth/discord/callback`;
+          const redirectUri = process.env.DISCORD_REDIRECT_URI || `${url.origin}/api/auth/discord/callback`;
           const token = await exchangeDiscordCode(code, redirectUri);
           const user = await fetchDiscordUser(token.access_token);
 
@@ -86,4 +86,5 @@ export const Route = createFileRoute("/api/auth/discord/callback")({
     },
   },
 });
+
 
