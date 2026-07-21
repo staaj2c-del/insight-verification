@@ -1,6 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useDashboard, canManageGuild, type LoaderKey } from "../dashboard";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import { Check, Copy, Key, Server, Globe, Trash2, Clock, AlertCircle, Shield } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/keys")({
   component: Keys,
@@ -15,14 +21,14 @@ function Keys() {
   const [loading, setLoading] = useState<string | null>(null);
   const [newKeyLabel, setNewKeyLabel] = useState("");
   const [selectedGuild, setSelectedGuild] = useState<string>("");
-  const [creating, setCreating] = useState(false);
+  const [creating, setCreating] = useState<"server" | "global" | null>(null);
   const [copySuccess, setCopySuccess] = useState<string | null>(null);
 
   const managedGuilds = guilds.filter((g) => canManageGuild(g.permissions));
 
   const createKey = async (type: "server" | "global") => {
     if (type === "server" && !selectedGuild) return;
-    setCreating(true);
+    setCreating(type);
     setCopySuccess(null);
     try {
       const guild = managedGuilds.find((g) => g.id === selectedGuild);
@@ -43,17 +49,18 @@ function Keys() {
       if (resData.key) {
         await navigator.clipboard.writeText(resData.key);
         setCopySuccess(resData.key);
+        toast.success(`${type === "server" ? "Server" : "Global"} key created & copied!`);
         const keysRes = await fetch("/api/public/keys");
         const keysData = await keysRes.json();
         setKeysState(keysData.keys ?? []);
         setNewKeyLabel("");
       } else {
-        alert(resData.error ?? "Failed to create key");
+        toast.error(resData.error ?? "Failed to create key");
       }
     } catch {
-      alert("Network error creating key");
+      toast.error("Network error creating key");
     } finally {
-      setCreating(false);
+      setCreating(null);
     }
   };
 
@@ -67,146 +74,228 @@ function Keys() {
         body: JSON.stringify({ key: fullKey }),
       });
       setKeysState((prev) => prev.filter((k) => k.fullKey !== fullKey));
+      toast.success("Key revoked.");
     } catch {
-      alert("Failed to revoke key");
+      toast.error("Failed to revoke key");
     } finally {
       setLoading(null);
     }
   };
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copied!");
+  };
+
   return (
     <div className="space-y-6">
-      {/* Create API Key Card */}
-      <div className="rounded-xl border border-border bg-card shadow-sm">
-        <div className="p-5 border-b border-border">
-          <h2 className="text-base font-semibold text-foreground">Create API Key</h2>
-          <p className="text-xs text-muted-foreground mt-1">
-            Generate keys for your bot to call the Insight Bot API on behalf of a server.
-          </p>
-        </div>
-        <div className="p-5 space-y-5">
-          {/* Server Key */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-foreground">Server Key</h3>
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">API Keys</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Generate keys for bots to call the Insight Bot API. Server keys are scoped per-guild and auto-approved.
+        </p>
+      </div>
+
+      {/* Create Keys Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Key className="h-5 w-5" />
+            Create New Key
+          </CardTitle>
+          <CardDescription>Keys authenticate your bot's API requests. Treat them like passwords.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {/* Label Input */}
+          <div>
+            <label className="text-sm font-medium text-foreground mb-1.5 block">Key Label</label>
+            <Input
+              placeholder="e.g. Production Bot, Staging, My Verifier..."
+              value={newKeyLabel}
+              onChange={(e) => setNewKeyLabel(e.target.value)}
+            />
+          </div>
+
+          {/* Server Key Section */}
+          <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Server className="h-4 w-4 text-blue-400" />
+              <h3 className="text-sm font-semibold text-foreground">Server Key</h3>
+              <Badge variant="secondary" className="text-[10px]">Auto-Approved</Badge>
+            </div>
             <p className="text-xs text-muted-foreground">
-              Scoped to one Discord server. Auto-approved. Use for verification commands in your bot.
+              Scoped to a single Discord server. Use for in-server verification commands.
             </p>
             <select
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               value={selectedGuild}
               onChange={(e) => setSelectedGuild(e.target.value)}
             >
-              <option value="">Select a server…</option>
+              <option value="">Select a server you manage…</option>
               {managedGuilds.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.name} ({g.id})
                 </option>
               ))}
             </select>
-            <input
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              placeholder="Key label (e.g. MyBot Production)"
-              value={newKeyLabel}
-              onChange={(e) => setNewKeyLabel(e.target.value)}
-            />
-            <button
+            {managedGuilds.length === 0 && (
+              <p className="text-xs text-amber-400 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                No managed servers found. You need &quot;Manage Server&quot; permission in a Discord server.
+              </p>
+            )}
+            <Button
               onClick={() => createKey("server")}
-              disabled={creating || !selectedGuild}
-              className="w-full rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+              disabled={creating !== null || !selectedGuild}
+              className="w-full"
+              variant="default"
             >
-              {creating ? "Creating…" : "Create Server Key"}
-            </button>
+              {creating === "server" ? (
+                <span className="animate-spin mr-2">⟳</span>
+              ) : (
+                <Server className="h-4 w-4 mr-2" />
+              )}
+              {creating === "server" ? "Creating…" : "Create Server Key"}
+            </Button>
           </div>
 
-          <hr className="border-border" />
+          {/* Divider */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">or</span>
+            </div>
+          </div>
 
-          {/* Global Key */}
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-foreground">
-              Global Key{" "}
-              <span className="text-xs font-normal text-amber-500">(requires staff approval)</span>
-            </h3>
+          {/* Global Key Section */}
+          <div className="rounded-lg border border-border bg-muted/30 p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Globe className="h-4 w-4 text-purple-400" />
+              <h3 className="text-sm font-semibold text-foreground">Global Key</h3>
+              <Badge variant="outline" className="text-[10px] text-amber-400 border-amber-400/30">Staff Review</Badge>
+            </div>
             <p className="text-xs text-muted-foreground">
-              Cross-server access. After creation, Insight Bot staff will review and authorize your key via Discord.
+              Cross-server access. Insight Bot staff will review and authorize your request. Usually within 24 hours.
             </p>
-            <input
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              placeholder="Key label (e.g. Public Bot API)"
-              value={newKeyLabel}
-              onChange={(e) => setNewKeyLabel(e.target.value)}
-            />
-            <button
+            <Button
               onClick={() => createKey("global")}
-              disabled={creating}
-              className="w-full rounded-md border border-border bg-secondary text-secondary-foreground px-4 py-2 text-sm font-medium hover:bg-secondary/80 transition-colors disabled:opacity-50"
+              disabled={creating !== null}
+              className="w-full"
+              variant="outline"
             >
-              {creating ? "Requesting…" : "Request Global Key"}
-            </button>
+              {creating === "global" ? (
+                <span className="animate-spin mr-2">⟳</span>
+              ) : (
+                <Globe className="h-4 w-4 mr-2" />
+              )}
+              {creating === "global" ? "Requesting…" : "Request Global Key"}
+            </Button>
           </div>
 
+          {/* Success banner */}
           {copySuccess && (
-            <div className="rounded-md bg-success/10 border border-success/30 p-3 text-sm">
-              <p className="font-semibold text-success">Key created & copied to clipboard!</p>
-              <p className="text-xs text-muted-foreground mt-1 break-all font-mono">{copySuccess}</p>
-              <p className="text-xs text-amber-400 mt-2">
-                ⚠️ Save this key now — you won't see it again.
+            <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/30 p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-emerald-400" />
+                <p className="text-sm font-semibold text-emerald-400">Key Created & Copied!</p>
+              </div>
+              <code className="block text-xs text-emerald-300 break-all font-mono bg-emerald-500/5 rounded px-2 py-1">
+                {copySuccess}
+              </code>
+              <p className="text-xs text-amber-400 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                Save this key now — it won&apos;t be shown again.
               </p>
             </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* Your API Keys Card */}
-      <div className="rounded-xl border border-border bg-card shadow-sm">
-        <div className="p-5 border-b border-border">
-          <h2 className="text-base font-semibold text-foreground">Your API Keys</h2>
-          <p className="text-xs text-muted-foreground mt-1">
-            Active keys for your account. Revoked keys are not shown.
-          </p>
-        </div>
-        <div className="p-5">
+      {/* Your Keys Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Your API Keys
+          </CardTitle>
+          <CardDescription>
+            {keysState.length} active key{keysState.length !== 1 ? "s" : ""}. Revoked keys are hidden.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
           {keysState.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              No keys yet. Create one above.
-            </p>
+            <div className="text-center py-10 space-y-2">
+              <Key className="h-10 w-10 mx-auto text-muted-foreground/40" />
+              <p className="text-sm text-muted-foreground">No API keys yet.</p>
+              <p className="text-xs text-muted-foreground">Create one above to get started.</p>
+            </div>
           ) : (
             <div className="space-y-3">
               {keysState.map((k) => (
-                <div key={k.fullKey} className="flex items-center justify-between rounded-lg border border-border p-3 text-sm">
-                  <div className="space-y-0.5 min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs text-muted-foreground">{k.key}</span>
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium uppercase ${
-                        k.type === "global" ? "bg-purple-500/10 text-purple-400" : "bg-blue-500/10 text-blue-400"
-                      }`}>
+                <div
+                  key={k.fullKey}
+                  className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-lg border border-border p-4 text-sm hover:bg-muted/30 transition-colors"
+                >
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <code className="text-xs text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">
+                        {k.key}
+                      </code>
+                      <Badge
+                        variant="secondary"
+                        className={`text-[10px] uppercase ${
+                          k.type === "global"
+                            ? "bg-purple-500/10 text-purple-400"
+                            : "bg-blue-500/10 text-blue-400"
+                        }`}
+                      >
+                        {k.type === "global" ? <Globe className="h-3 w-3 mr-0.5 inline" /> : <Server className="h-3 w-3 mr-0.5 inline" />}
                         {k.type}
-                      </span>
+                      </Badge>
                       {!k.authorized && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-amber-500/10 text-amber-400">
-                          PENDING
-                        </span>
+                        <Badge variant="outline" className="text-[10px] text-amber-400 border-amber-400/30">
+                          <Clock className="h-3 w-3 mr-0.5 inline" /> Pending Approval
+                        </Badge>
                       )}
                     </div>
-                    <p className="text-xs text-foreground">{k.label}</p>
-                    {k.guildName && <p className="text-[11px] text-muted-foreground">{k.guildName}</p>}
-                    <p className="text-[10px] text-muted-foreground">
+                    <p className="font-medium text-foreground">{k.label}</p>
+                    {k.guildName && (
+                      <p className="text-xs text-muted-foreground">Server: {k.guildName}</p>
+                    )}
+                    <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
                       Created {new Date(k.createdAt).toLocaleDateString()}
-                      {k.lastUsed ? ` · Last used ${new Date(k.lastUsed).toLocaleDateString()}` : ""}
+                      {k.lastUsed && ` · Used ${new Date(k.lastUsed).toLocaleDateString()}`}
                     </p>
                   </div>
-                  <button
-                    onClick={() => doRevoke(k.fullKey)}
-                    disabled={loading === k.fullKey}
-                    className="rounded-md px-2.5 py-1 text-xs text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50 shrink-0 ml-2"
-                  >
-                    {loading === k.fullKey ? "…" : "Revoke"}
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => copyToClipboard(k.fullKey)}
+                      className="text-xs"
+                    >
+                      <Copy className="h-3 w-3 mr-1" /> Copy
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => doRevoke(k.fullKey)}
+                      disabled={loading === k.fullKey}
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      {loading === k.fullKey ? "…" : "Revoke"}
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
