@@ -106,6 +106,9 @@ function Index() {
             <a href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               Dashboard
             </a>
+            <a href="/api/docs" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              API Docs
+            </a>
             <a href="https://insightbot.online" target="_blank" rel="noopener noreferrer" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               insightbot.online
             </a>
@@ -203,6 +206,7 @@ function Index() {
     </div>
   );
 }
+
 
 
 
