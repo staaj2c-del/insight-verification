@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, Link } from "@tanstack/react-router";
 import { createContext, useContext } from "react";
-import { resolveDashboardSession, getDashboardGuilds, getDashboardKeys } from "@/lib/dashboard-fns";
+import { resolveDashboardSession, getDashboardGuilds, getDashboardKeys, getIpDashboardSession } from "@/lib/dashboard-fns";
 
 // ── Pure helper (no server deps) ───────────────────────────────────
 const MANAGE_GUILD = 0x20n;
@@ -44,13 +44,44 @@ export function useDashboard() {
 }
 
 export const Route = createFileRoute("/dashboard")({
-  loader: async () => {
-    // resolveDashboardSession uses getWebRequest() internally (server-only),
-    // so it correctly reads the ibs cookie on every SSR request.
-    const session = await resolveDashboardSession();
+  loader: async ({ request }) => {
+    // Read ibs cookie from the raw request (same pattern as index.tsx).
+    const cookieHeader = request?.headers?.get?.("cookie") ?? "";
+    const match = cookieHeader
+      .split(";")
+      .map((c: string) => c.trim())
+      .find((c: string) => c.startsWith("ibs="));
+    const sessionId = match ? decodeURIComponent(match.slice("ibs=".length)) : null;
+
+    let session = null as LoaderSession | null;
+    if (sessionId) {
+      const s = await resolveDashboardSession({ data: { sessionId } });
+      if (s) session = s as LoaderSession;
+    }
+
+    // IP-based fallback (like index.tsx)
+    if (!session && request) {
+      const ip = request.headers?.get?.("x-forwarded-for")?.split(",")[0]?.trim()
+        ?? request.headers?.get?.("x-real-ip")
+        ?? null;
+      if (ip) {
+        const ipSession = await getIpDashboardSession({ data: { ip } });
+        if (ipSession) {
+          session = {
+            sessionId: "ip-" + ipSession.discordId,
+            discordId: ipSession.discordId,
+            discordUsername: ipSession.discordUsername,
+            discordAvatar: ipSession.discordAvatar,
+            accessToken: "",
+          };
+        }
+      }
+    }
+
     if (!session) {
       return { session: null, guilds: [], keys: [] };
     }
+
     const [guilds, keys] = await Promise.all([
       getDashboardGuilds({ data: { sessionId: session.sessionId } }),
       getDashboardKeys({ data: { sessionId: session.sessionId } }),
@@ -230,6 +261,8 @@ function Footer() {
     </footer>
   );
 }
+
+
 
 
 
