@@ -18,6 +18,10 @@ function getSessionIdFromCookie(request: Request | undefined): string | null {
 }
 
 export const Route = createFileRoute("/")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    discord_id: typeof s.discord_id === "string" ? s.discord_id : "",
+    token: typeof s.token === "string" ? s.token : "",
+  }),
   loader: async ({ request }) => {
     const sessionId = getSessionIdFromCookie(request);
     let session: { discordId: string; discordUsername: string; discordAvatar: string | null } | null = null;
@@ -56,20 +60,20 @@ function Index() {
     session: { discordId: string; discordUsername: string; discordAvatar: string | null } | null;
     stats: { verifications: number; apiKeys: number; tokens: number };
   };
-  const search = Route.useSearch();
+  const { discord_id, token } = Route.useSearch();
   const [error, setError] = useState("");
   const [verifyingToken, setVerifyingToken] = useState(false);
-  const discordId = search.discord_id || data.session?.discordId || "";
+  const discordId = discord_id || data.session?.discordId || "";
 
   useEffect(() => {
-    const token = search.token?.trim();
-    if (!token) return;
+    const t = token?.trim();
+    if (!t) return;
     setVerifyingToken(true);
-    fetch(`/api/public/token/${encodeURIComponent(token)}`)
+    fetch(`/api/public/token/${encodeURIComponent(t)}`)
       .then((r) => r.json())
       .then((resData) => {
         if (resData.discord_id) {
-          window.location.href = `/api/auth/roblox/start?discord_id=${encodeURIComponent(resData.discord_id)}&token=${encodeURIComponent(token)}`;
+          window.location.href = `/api/auth/roblox/start?discord_id=${encodeURIComponent(resData.discord_id)}&token=${encodeURIComponent(t)}`;
         } else {
           setError(resData.error || "Invalid or expired verification link.");
           setVerifyingToken(false);
@@ -79,12 +83,12 @@ function Index() {
         setError("Unable to validate your verification link. Please try again.");
         setVerifyingToken(false);
       });
-  }, [search.token]);
+  }, [token]);
 
   const startVerification = () => {
-    const token = search.token?.trim();
+    const t = token?.trim();
     const params = new URLSearchParams({ discord_id: discordId });
-    if (token) params.set("token", token);
+    if (t) params.set("token", t);
     window.location.href = `/api/auth/roblox/start?${params.toString()}`;
   };
 
@@ -320,4 +324,7 @@ function FeatureCard({ icon, title, desc }: { icon: string; title: string; desc:
     </Card>
   );
 }
+
+
+
 

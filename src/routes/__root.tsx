@@ -24,6 +24,34 @@ function NotFoundComponent() {
   );
 }
 
+function ErrorComponent() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="max-w-md text-center">
+        <h1 className="text-6xl font-bold text-destructive">Oops</h1>
+        <h2 className="mt-4 text-xl font-semibold text-foreground">Something went wrong</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          An unexpected error occurred. Please try again. If the issue persists, check that all environment variables are set in Vercel.
+        </p>
+        <div className="mt-6 flex gap-3 justify-center">
+          <a
+            href="/"
+            className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            Go home
+          </a>
+          <a
+            href="/dashboard"
+            className="inline-flex items-center justify-center rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition-colors"
+          >
+            Dashboard
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export const Route = createRootRoute({
   head: () => ({
     meta: [
@@ -47,6 +75,7 @@ export const Route = createRootRoute({
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
+  errorComponent: ErrorComponent,
 });
 
 function RootShell({ children }: { children: React.ReactNode }) {
@@ -66,5 +95,6 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   return <Outlet />;
 }
+
 
 

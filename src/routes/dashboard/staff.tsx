@@ -28,14 +28,19 @@ import { UserX, ShieldBan, Globe, Search, Check, X, Trash2, Shield, User } from 
 
 export const Route = createFileRoute("/dashboard/staff")({
   loader: async () => {
-    const staff = await getStaffContext();
-    if (!staff) throw redirect({ to: "/dashboard/overview" });
-    const [pendingKeys, verifications, blacklists] = await Promise.all([
-      getPendingGlobalKeys(),
-      getAllVerifications({ data: { page: 1, limit: 20 } }),
-      getBlacklists(),
-    ]);
-    return { staff, pendingKeys: pendingKeys ?? [], verifications, blacklists: blacklists ?? [] };
+    try {
+      const staff = await getStaffContext();
+      if (!staff) throw redirect({ to: "/dashboard/overview" });
+      const [pendingKeys, verifications, blacklists] = await Promise.all([
+        getPendingGlobalKeys(),
+        getAllVerifications({ data: { page: 1, limit: 20 } }),
+        getBlacklists(),
+      ]);
+      return { error: null, staff, pendingKeys: pendingKeys ?? [], verifications, blacklists: blacklists ?? [] };
+    } catch (e) {
+      if (e && typeof e === "object" && "to" in (e as Record<string, unknown>)) throw e;
+      return { error: e instanceof Error ? e.message : "Failed to load staff data", staff: null, pendingKeys: [], verifications: { docs: [], total: 0 }, blacklists: [] };
+    }
   },
   component: StaffPanel,
   head: () => ({
@@ -48,6 +53,7 @@ export const Route = createFileRoute("/dashboard/staff")({
 
 function StaffPanel() {
   const data = Route.useLoaderData() as {
+    error: string | null;
     staff: {
       discordId: string;
       discordUsername: string;
@@ -55,7 +61,7 @@ function StaffPanel() {
       robloxUsername: string | null;
       robloxId: string | null;
       robloxDisplayName: string | null;
-    };
+    } | null;
     pendingKeys: Array<{
       key: string;
       ownerId: string;
@@ -74,6 +80,25 @@ function StaffPanel() {
       addedAt: string;
     }>;
   };
+
+  if (data.error) {
+    return (
+      <div className="rounded-xl border border-destructive/50 bg-destructive/5 p-6 text-center">
+        <p className="text-sm font-semibold text-destructive">Staff Panel Error</p>
+        <p className="text-xs text-muted-foreground mt-1 font-mono">{data.error}</p>
+        <p className="text-xs text-muted-foreground mt-3">
+          Make sure <code className="bg-muted px-1 rounded">STAFF_DISCORD_IDS</code> is set in your Vercel environment variables.
+        </p>
+      </div>
+    );
+  }
+  if (!data.staff) {
+    return (
+      <div className="rounded-xl border border-border p-6 text-center">
+        <p className="text-sm text-muted-foreground">You do not have staff access.</p>
+      </div>
+    );
+  }
 
   const [approving, setApproving] = useState<string | null>(null);
   const [pendingKeysState, setPendingKeysState] = useState(data.pendingKeys);
@@ -483,4 +508,7 @@ function StaffPanel() {
     </div>
   );
 }
+
+
+
 
